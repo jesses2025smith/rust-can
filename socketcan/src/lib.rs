@@ -376,21 +376,21 @@ impl TryFrom<DeviceBuilder> for SocketCan {
         let mut device = SocketCan::new();
         builder.channel_configs()
             .iter()
-            .try_for_each(|(clh, cfg)| {
+            .try_for_each(|(chl, cfg)| {
                 let canfd = builder.get_other::<bool>(CANFD)?
                     .unwrap_or_default();
-                device.init_channel(clh, canfd)?;
+                device.init_channel(chl, canfd)?;
 
                 if let Some(filters) = builder.get_other::<Vec<CanFilter>>(FILTERS)? {
-                    device.set_filters(clh, &filters)?;
+                    device.set_filters(chl, &filters)?;
                 }
 
                 if let Some(loopback) = builder.get_other::<bool>(LOOPBACK)? {
-                    device.set_loopback(clh, loopback)?;
+                    device.set_loopback(chl, loopback)?;
                 }
 
                 if let Some(recv_own_msg) = builder.get_other::<bool>(RECV_OWN_MSG) {
-                    device.set_recv_own_msgs(clh, recv_own_msg)?;
+                    device.set_recv_own_msgs(chl, recv_own_msg)?;
                 }
 
                 Ok(())

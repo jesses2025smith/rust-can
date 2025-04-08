@@ -4,9 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
 description = "A Cross-platform ZLGCAN driver."
-homepage = "https://github.com/zhuyu4839/rust-can"
-repository = "https://github.com/zhuyu4839/rust-can"
+homepage = "https://github.com/jesses2025smith/rust-can/tree/master/zlgcan"
 exclude = ["library/*"]
 
 [lib]

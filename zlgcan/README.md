@@ -26,11 +26,11 @@
 ### Demo
 
 ```rust
-use rs_can::{CanError, DeviceBuilder, interfaces::ZLGCAN, ChannelConfig};
+use rs_can::{CanError, DeviceBuilder, ChannelConfig};
 use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType}, device::ZCanDeviceType, driver::{ZDevice, ZCanDriver}, CHANNEL_MODE, CHANNEL_TYPE, DEVICE_INDEX, DEVICE_TYPE};
 
 fn main() -> Result<(), CanError> {
-    let mut builder = DeviceBuilder::new(ZLGCAN);
+    let mut builder = DeviceBuilder::new();
 
     let mut ch1_cfg = ChannelConfig::new(500_000);
     ch1_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8))
@@ -74,8 +74,8 @@ zlgcan = { version="lastest-version" }
     ```
     and copy all files into correct directory.
 
-    The basic [library](https://github.com/zhuyu4839/rust-can/blob/master/zlgcan/library).
-    The [bitrate.cfg.yaml](https://github.com/zhuyu4839/rust-can/blob/master/zlgcan/library/bitrate.cfg.yaml)
+    The basic [library](https://github.com/jesses2025smith/rust-can/blob/master/zlgcan/library).
+    The [bitrate.cfg.yaml](https://github.com/jesses2025smith/rust-can/blob/master/zlgcan/library/bitrate.cfg.yaml)
 
 * Create `zcan.env` at your project path for special `ZCAN_LIBRARY` path, For example:
     ```shell

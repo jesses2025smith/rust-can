@@ -24,10 +24,10 @@ socketcan-rs = { version="lastest-version" }
 ### UDS example
 ```toml
 [dependencies]
-docan = { git = "https://github.com/zhuyu4839/docan-rs", branch = "develop" }
-iso14229-1 = { git = "https://github.com/zhuyu4839/iso14229-1", branch = "develop" }
-rs-can = { git = "https://github.com/zhuyu4839/rust-can", branch = "develop", package = "rs-can", features = ["isotp-std2004"]  }
-socketcan-rs = { git = "https://github.com/zhuyu4839/rust-can", branch = "develop", package = "socketcan-rs" }
+docan = { git = "https://github.com/jesses2025smith/docan-rs", branch = "develop" }
+iso14229-1 = { git = "https://github.com/jesses2025smith/iso14229-1", branch = "develop" }
+rs-can = { git = "https://github.com/jesses2025smith/rust-can", branch = "develop", package = "rs-can", features = ["isotp-std2004"]  }
+socketcan-rs = { git = "https://github.com/jesses2025smith/rust-can", branch = "develop", package = "socketcan-rs" }
 anyhow = "1"
 ```
 
@@ -48,8 +48,9 @@ type Server = (IsoTpAdapter<SocketCan, String, CanMessage>, DoCanServer<SocketCa
 
 fn init_client() -> anyhow::Result<Client> {
     let channel = "vcan0";
-    let mut device = SocketCan::new();
-    device.init_channel(channel, true)?;
+    let mut builder = DeviceBuilder::new();
+    builder.add_config(channel, Default::default());
+    let device: SocketCan = builder.build()?;
 
     let mut adapter = IsoTpAdapter::new(device);
     let mut client = DoCanClient::new(adapter.clone(), None);
@@ -67,8 +68,9 @@ fn init_client() -> anyhow::Result<Client> {
 
 fn init_server() -> anyhow::Result<Server> {
     let channel = "vcan0";
-    let mut device = SocketCan::new();
-    device.init_channel(channel, true)?;
+    let mut builder = DeviceBuilder::new();
+    builder.add_config(channel, Default::default());
+    let device: SocketCan = builder.build()?;
 
     let mut adapter = IsoTpAdapter::new(device);
     let server = DoCanServer::new(adapter.clone(), channel.into(), Address {

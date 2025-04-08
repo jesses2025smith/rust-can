@@ -13,10 +13,11 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT OR GPL-3.0"
-authors = ["Jesse Smith <zhuyu4839@gmail.com>"]
+authors = ["Jesse Smith <jesses2025smith@gmail.com>"]
+repository = "https://github.com/jesses2025smith/rust-can"
 
 [workspace.dependencies]
 bitflags = "2.6"
