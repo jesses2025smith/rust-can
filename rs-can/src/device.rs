@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, fmt::Display};
+use std::{any::{Any, type_name}, collections::HashMap, fmt::Display};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use crate::error::Error;
@@ -115,7 +115,9 @@ fn get_other<T: Clone + 'static>(
     match others.get(name)  {
         Some(v) => Ok(Some(
             v.downcast_ref::<T>()
-                .ok_or(Error::OtherError(format!("type mismatched: {}", name)))?
+                .ok_or(Error::OtherError(
+                    format!("type mismatched for `{}` expected: `{}`", name, type_name::<T>())
+                ))?
                 .clone()
         )),
         None => Ok(None),
