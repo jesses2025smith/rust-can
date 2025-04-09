@@ -2,12 +2,7 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use rand::{Rng, rng, prelude::ThreadRng};
 use rs_can::{CanError, CanFrame, CanId, ChannelConfig, DeviceBuilder, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
-use zlgcan_rs::{
-    can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode},
-    device::{DeriveInfo, ZCanDeviceType},
-    driver::{ZCanDriver, ZDevice},
-    CHANNEL_MODE, CHANNEL_TYPE, DERIVE_INFO, DEVICE_INDEX, DEVICE_TYPE
-};
+use zlgcan_rs::{can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode}, device::{DeriveInfo, ZCanDeviceType}, driver::{ZCanDriver, ZDevice}, CHANNEL_MODE, CHANNEL_TYPE, DERIVE_INFO, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
 
 fn generate_can_id(rng: &mut ThreadRng, extend: bool) -> u32 {
     if extend {
@@ -54,6 +49,7 @@ fn device_open(
     canfd: bool,
 ) -> anyhow::Result<ZCanDriver> {
     let mut builder = DeviceBuilder::new();
+    builder.add_other(LIBPATH, Box::new("library".to_string()));
     builder.add_other(DEVICE_TYPE, Box::new(dev_type as u32))
         .add_other(DEVICE_INDEX, Box::new(dev_idx));
     if let Some(derive_info) = derive_info {
@@ -229,6 +225,7 @@ pub fn canfd_device2(dev_type: ZCanDeviceType, channels: u8, available: u8, tran
     cfg.set_data_bitrate(1_000_000)
         .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO as u8))
         .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8));
+    driver.init_can_chl(0, &cfg)?;
     transmit_canfd(&driver, comm_count, ext_count, brs_count, trans_ch, recv_ch)?;
 
     driver.close();

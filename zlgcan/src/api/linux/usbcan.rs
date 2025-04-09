@@ -93,9 +93,9 @@ impl ZDeviceApi for USBCANApi<'_> {
 }
 
 impl ZCanApi for USBCANApi<'_> {
-    fn init_can_chl(&self, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
+    fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
-        let cfg_ctx = CanChlCfgContext::new()?;
+        let cfg_ctx = CanChlCfgContext::new(libpath)?;
         let bc_ctx = cfg_ctx.0.get(&(dev_type as u32).to_string())
             .ok_or(CanError::InitializeError(
                 format!("device: {} is not configured in {}", dev_type, BITRATE_CFG_FILENAME)
@@ -252,7 +252,7 @@ mod tests {
         assert!(!dev_info.canfd());
 
         let mut context = ZChannelContext::new(context, channel);
-        api.init_can_chl(&mut context, &cfg)?;
+        api.init_can_chl("library", &mut context, &cfg)?;
         let frame = CanMessage::new(
             CanId::from_bits(0x7E0, Some(false)),
             [0x01, 0x02, 0x03].as_slice()

@@ -17,7 +17,6 @@ name = "zlgcan_rs"
 log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
-dotenvy = { workspace = true }
 dlopen2 = { workspace = true }
 rs-can = { workspace = true }
 

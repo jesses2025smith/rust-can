@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+pub const LIBPATH: &str = "libpath";
 pub const DEVICE_TYPE: &'static str = "device-type";
 pub const DEVICE_INDEX: &'static str = "device-index";
 pub const DERIVE_INFO: &'static str = "derive-info";

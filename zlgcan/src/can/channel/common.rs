@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fs::read_to_string, ffi::{c_uchar, c_uint, c_ushort}};
+use std::{collections::HashMap, fs::read_to_string, ffi::{c_uchar, c_uint, c_ushort}, path::PathBuf};
 use serde::Deserialize;
 use rs_can::{CanError, ChannelConfig};
-use crate::can::{ZCanFilterType, constant::{BITRATE_CFG_FILENAME, TIMING0, TIMING1, ZCAN_ENV, ZCAN_VAR}};
+use crate::can::{ZCanFilterType, constant::{BITRATE_CFG_FILENAME, TIMING0, TIMING1}};
 use crate::{ACC_CODE, ACC_MASK, CHANNEL_MODE, FILTER_TYPE};
 
 #[repr(C)]
@@ -58,16 +58,11 @@ pub(crate) struct BitrateCfg {
 pub(crate) struct CanChlCfgContext(pub(crate) HashMap<String, BitrateCfg>);
 
 impl CanChlCfgContext {
-    pub fn new() -> Result<Self, CanError> {
-        let libpath = match dotenvy::from_filename(ZCAN_ENV) {
-            Ok(_) => match std::env::var(ZCAN_VAR){
-                Ok(v) => format!("{}/{}", v, BITRATE_CFG_FILENAME),
-                Err(_) => BITRATE_CFG_FILENAME.into(),
-            },
-            Err(_) => BITRATE_CFG_FILENAME.into(),
-        };
-        let data = read_to_string(&libpath)
-            .map_err(|e| CanError::OtherError(format!("Unable to read `{}`: {:?}", libpath, e)))?;
+    pub fn new(libpath: &str) -> Result<Self, CanError> {
+        let mut path = PathBuf::from(libpath);
+        path.push(BITRATE_CFG_FILENAME);
+        let data = read_to_string(&path)
+            .map_err(|e| CanError::OtherError(format!("Unable to read `{:?}`: {:?}", path, e)))?;
         let result = serde_yaml::from_str(&data)
             .map_err(|e| CanError::OtherError(format!("Error parsing YAML: {:?}", e)))?;
 

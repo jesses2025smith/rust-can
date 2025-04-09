@@ -53,6 +53,7 @@ impl USBCANEApi<'_> {
     pub(crate) const STATUS_OK: u32 = 0;
     pub(crate) fn init_can_chl_ex(
         &self,
+        libpath: &str,
         dev_hdl: &mut Handler,
         channel: u8,
         cfg: &ChannelConfig,
@@ -66,7 +67,7 @@ impl USBCANEApi<'_> {
             dev_hdl.remove_can(channel);
         }
 
-        match self.start_channel(dev_hdl, channel, set_value_func, cfg) {
+        match self.start_channel(libpath, dev_hdl, channel, set_value_func, cfg) {
             Ok(context) => {
                 dev_hdl.add_can(channel, context);
             },
@@ -85,13 +86,14 @@ impl USBCANEApi<'_> {
     #[inline]
     fn start_channel(
         &self,
+        libpath: &str,
         dev_hdl: &mut Handler,
         channel: u8,
         set_value_func: SetValueFunc,
         cfg: &ChannelConfig
     ) -> Result<ZChannelContext, CanError> {
         let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), channel);
-        self.init_can_chl(&mut context, cfg)?; // ZCAN_InitCAN]
+        self.init_can_chl(libpath, &mut context, cfg)?; // ZCAN_InitCAN]
         // self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
         let (chl_hdl, channel) = (context.channel_handler()?, context.channel());
         self.set_channel(channel, set_value_func, cfg)?;
@@ -185,11 +187,11 @@ impl ZDeviceApi for USBCANEApi<'_> {
 }
 
 impl ZCanApi for USBCANEApi<'_> {
-    fn init_can_chl(&self, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
+    fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
         let dev_type = context.device_type();
         let dev_hdl = context.device_handler()?;
         let channel = context.channel() as u32;
-        let cfg_ctx = CanChlCfgContext::new()?;
+        let cfg_ctx = CanChlCfgContext::new(libpath)?;
         let bc_ctx = cfg_ctx.0.get(&(dev_type as u32).to_string())
             .ok_or(CanError::InitializeError(
                 format!("device: {} is not configured in {}", dev_type, BITRATE_CFG_FILENAME)

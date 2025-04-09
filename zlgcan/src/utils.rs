@@ -1,4 +1,5 @@
 use std::ffi::{c_char, CStr};
+use std::path::PathBuf;
 use rs_can::CanError;
 
 #[inline]
@@ -13,6 +14,12 @@ pub fn c_str_to_string(src: *const c_char) -> Result<String, CanError> {
 
         Ok(value)
     }
+}
+
+#[inline]
+pub(crate) fn get_libpath(mut path: PathBuf, libname: &str) -> PathBuf {
+    path.push(&libname);
+    path
 }
 
 // #[inline]
