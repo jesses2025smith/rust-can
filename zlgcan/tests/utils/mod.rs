@@ -31,7 +31,7 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> anyh
         frame.set_tx_mode(ZCanTxMode::Normal as u8);
 
         if canfd {
-            frame.set_bitrate_switch(brs.unwrap_or(false));
+            frame.set_bitrate_switch(brs.unwrap_or_default());
         }
 
         frames.push(frame);
@@ -87,9 +87,9 @@ fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: 
     let ret = driver.transmit_can(trans_ch, frames2)?;
     assert_eq!(ret, ext_count);
 
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(500));
 
-    let timeout = Duration::from_secs(3);
+    let timeout = Duration::from_secs(10);
     let start_time = SystemTime::now();
     loop {
         // waiting for receive message
@@ -116,7 +116,7 @@ fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: 
     Ok(())
 }
 
-fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_count: u32, recv_ch: u8, trans_ch: u8) -> anyhow::Result<()> {
+fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let frames1 = new_messages(comm_count, true, false, None)?;
     let frames2 = new_messages(ext_count, true, true, None)?;
     let frames3 = new_messages(brs_count, true, false, Some(true))?;
@@ -130,35 +130,35 @@ fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_coun
 
     // transmit CANFD frames
     let length = frames1.len();
-    let ret = driver.transmit_canfd(recv_ch, frames1)? as usize;
+    let ret = driver.transmit_canfd(trans_ch, frames1)? as usize;
     assert_eq!(ret, length);
 
     let length = frames2.len();
-    let ret = driver.transmit_canfd(recv_ch, frames2)? as usize;
+    let ret = driver.transmit_canfd(trans_ch, frames2)? as usize;
     assert_eq!(ret, length);
 
     let length = frames3.len();
-    let ret = driver.transmit_canfd(recv_ch, frames3)? as usize;
+    let ret = driver.transmit_canfd(trans_ch, frames3)? as usize;
     assert_eq!(ret, length);
 
     let length = frames4.len();
-    let ret = driver.transmit_canfd(recv_ch, frames4)? as usize;
+    let ret = driver.transmit_canfd(trans_ch, frames4)? as usize;
     assert_eq!(ret, length);
 
     thread::sleep(Duration::from_millis(500));
 
-    let timeout = Duration::from_secs(3);
+    let timeout = Duration::from_secs(10);
     let start_time = SystemTime::now();
     loop {
         // get CANFD receive count
-        let cnt = driver.get_can_num(trans_ch, ZCanFrameType::CAN)?;
-        let cnt_fd = driver.get_can_num(trans_ch, ZCanFrameType::CANFD)?;
+        let cnt = driver.get_can_num(recv_ch, ZCanFrameType::CAN)?;
+        let cnt_fd = driver.get_can_num(recv_ch, ZCanFrameType::CANFD)?;
 
         if cnt > 0 || cnt_fd > 0 {
             assert_eq!(cnt_fd, comm_count + ext_count + 2 * brs_count);
             assert_eq!(cnt, 0);
             // receive CANFD frames
-            let frames = driver.receive_canfd(trans_ch, cnt_fd, None)?;
+            let frames = driver.receive_canfd(recv_ch, cnt_fd, None)?;
             assert_eq!(frames.len() as u32, cnt_fd);
             println!("received fd frame: {cnt_fd}");
             frames.iter().for_each(|f| println!("{}", f));

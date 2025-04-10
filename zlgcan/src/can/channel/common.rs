@@ -47,7 +47,7 @@ impl TryFrom<u8> for ZCanChlMode {
 
 /// The deserialize object mapped to configuration file context.
 #[derive(Debug, Deserialize)]
-pub(crate) struct BitrateCfg {
+pub(crate) struct BitrateCtx {
     pub(crate) bitrate: HashMap<String, HashMap<String, u32>>,
     pub(crate) clock: Option<u32>,
     #[allow(unused)]
@@ -55,7 +55,7 @@ pub(crate) struct BitrateCfg {
 }
 
 #[derive(Debug)]
-pub(crate) struct CanChlCfgContext(pub(crate) HashMap<String, BitrateCfg>);
+pub(crate) struct CanChlCfgContext(pub(crate) HashMap<String, BitrateCtx>);
 
 impl CanChlCfgContext {
     pub fn new(libpath: &str) -> Result<Self, CanError> {
@@ -108,11 +108,11 @@ impl ZCanChlCfgInner {
     }
 
     pub(crate) fn try_from_with(
-        bc: &BitrateCfg,
+        ctx: &BitrateCtx,
         cfg: &ChannelConfig
     ) -> Result<Self, CanError> {
         let bitrate = cfg.bitrate();
-        match bc.bitrate.get(&bitrate.to_string()) {
+        match ctx.bitrate.get(&bitrate.to_string()) {
             Some(v) => {
                 let &timing0 = v.get(TIMING0)
                     .ok_or(CanError::OtherError(format!("`{}` is not configured in file!", TIMING0)))?;

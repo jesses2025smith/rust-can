@@ -55,7 +55,7 @@ impl SocketCan {
                     &mut buffer as *mut _ as *mut c_void,
                     XL_FRAME_SIZE
                 ) };
-                match rd {
+                match rd as usize {
                     FRAME_SIZE => {
                         let frame = unsafe { *(&buffer as *const _ as *const can_frame) };
                         let mut frame = CanMessage::from(CanAnyFrame::from(frame));
@@ -377,19 +377,19 @@ impl TryFrom<DeviceBuilder> for SocketCan {
         builder.channel_configs()
             .iter()
             .try_for_each(|(chl, cfg)| {
-                let canfd = builder.get_other::<bool>(CANFD)?
+                let canfd = cfg.get_other::<bool>(CANFD)?
                     .unwrap_or_default();
                 device.init_channel(chl, canfd)?;
 
-                if let Some(filters) = builder.get_other::<Vec<CanFilter>>(FILTERS)? {
+                if let Some(filters) = cfg.get_other::<Vec<CanFilter>>(FILTERS)? {
                     device.set_filters(chl, &filters)?;
                 }
 
-                if let Some(loopback) = builder.get_other::<bool>(LOOPBACK)? {
+                if let Some(loopback) = cfg.get_other::<bool>(LOOPBACK)? {
                     device.set_loopback(chl, loopback)?;
                 }
 
-                if let Some(recv_own_msg) = builder.get_other::<bool>(RECV_OWN_MSG) {
+                if let Some(recv_own_msg) = cfg.get_other::<bool>(RECV_OWN_MSG)? {
                     device.set_recv_own_msgs(chl, recv_own_msg)?;
                 }
 

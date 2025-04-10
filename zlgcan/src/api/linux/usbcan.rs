@@ -173,7 +173,7 @@ impl ZCanApi for USBCANApi<'_> {
     fn receive_can(&self, context: &ZChannelContext, size: u32, timeout: u32) -> Result<Vec<CanMessage>, CanError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let mut frames = Vec::new();
-        frames.resize(size as usize, ZCanFrame { can: ZCanFrameInner { usbcan: Default::default() } });
+        frames.resize(size as usize, ZCanFrame { can: ZCanFrameInner { libusbcan: Default::default() } });
 
         let ret = unsafe { (self.VCI_Receive)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
@@ -185,14 +185,14 @@ impl ZCanApi for USBCANApi<'_> {
 
         Ok(frames.into_iter()
             .map(|mut frame| unsafe {
-                frame.can.usbcan.into()
+                frame.can.libusbcan.into()
             })
             .collect::<Vec<_>>())
     }
 
     fn transmit_can(&self, context: &ZChannelContext, frames: Vec<CanMessage>) -> Result<u32, CanError> {
         let frames = frames.into_iter()
-            .map(|frame| ZCanFrame { can: ZCanFrameInner { usbcan: frame.into() } })
+            .map(|frame| ZCanFrame { can: ZCanFrameInner { libusbcan: frame.into() } })
             .collect::<Vec<_>>();
 
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
