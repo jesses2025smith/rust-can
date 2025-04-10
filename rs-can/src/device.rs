@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, fmt::Display};
+use std::{any::{Any, type_name}, collections::HashMap, fmt::Display};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use crate::error::Error;
@@ -78,24 +78,14 @@ impl ChannelConfig {
 
 #[derive(Debug, Default, Getters)]
 pub struct DeviceBuilder {
-    interface: String,
-    channel: Option<String>,
     #[getter(rename = "channel_configs")]
     configs: HashMap<String, ChannelConfig>,
     others: HashMap<String, Box<dyn Any>>,
 }
 
 impl DeviceBuilder {
-    pub fn new(interface: &str) -> Self {
-        Self {
-            interface: interface.into(),
-            ..Default::default()
-        }
-    }
-
-    pub fn set_channel<S: Into<String>>(&mut self, channel: S) -> &mut Self {
-        self.channel = Some(channel.into());
-        self
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn add_config<S: Into<String>>(&mut self, channel: S, cfg: ChannelConfig) -> &mut Self {
@@ -125,7 +115,9 @@ fn get_other<T: Clone + 'static>(
     match others.get(name)  {
         Some(v) => Ok(Some(
             v.downcast_ref::<T>()
-                .ok_or(Error::other_error("type mismatched"))?
+                .ok_or(Error::OtherError(
+                    format!("type mismatched for `{}` expected: `{}`", name, type_name::<T>())
+                ))?
                 .clone()
         )),
         None => Ok(None),

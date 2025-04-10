@@ -1,8 +1,8 @@
-use std::{collections::HashMap, fs::read_to_string, ffi::{c_uchar, c_uint, c_ushort}};
+use std::{collections::HashMap, fs::read_to_string, ffi::{c_uchar, c_uint, c_ushort}, path::PathBuf};
 use serde::Deserialize;
 use rs_can::{CanError, ChannelConfig};
-use crate::can::{ZCanFilterType, constant::{BITRATE_CFG_FILENAME, TIMING0, TIMING1, ZCAN_ENV, ZCAN_VAR}};
-use crate::{ACC_CODE, ACC_MASK, CHANNEL_MODE, FILTER};
+use crate::can::{ZCanFilterType, constant::{BITRATE_CFG_FILENAME, TIMING0, TIMING1}};
+use crate::{ACC_CODE, ACC_MASK, CHANNEL_MODE, FILTER_TYPE};
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -47,7 +47,7 @@ impl TryFrom<u8> for ZCanChlMode {
 
 /// The deserialize object mapped to configuration file context.
 #[derive(Debug, Deserialize)]
-pub(crate) struct BitrateCfg {
+pub(crate) struct BitrateCtx {
     pub(crate) bitrate: HashMap<String, HashMap<String, u32>>,
     pub(crate) clock: Option<u32>,
     #[allow(unused)]
@@ -55,19 +55,14 @@ pub(crate) struct BitrateCfg {
 }
 
 #[derive(Debug)]
-pub(crate) struct CanChlCfgContext(pub(crate) HashMap<String, BitrateCfg>);
+pub(crate) struct CanChlCfgContext(pub(crate) HashMap<String, BitrateCtx>);
 
 impl CanChlCfgContext {
-    pub fn new() -> Result<Self, CanError> {
-        let libpath = match dotenvy::from_filename(ZCAN_ENV) {
-            Ok(_) => match std::env::var(ZCAN_VAR){
-                Ok(v) => format!("{}/{}", v, BITRATE_CFG_FILENAME),
-                Err(_) => BITRATE_CFG_FILENAME.into(),
-            },
-            Err(_) => BITRATE_CFG_FILENAME.into(),
-        };
-        let data = read_to_string(&libpath)
-            .map_err(|e| CanError::OtherError(format!("Unable to read `{}`: {:?}", libpath, e)))?;
+    pub fn new(libpath: &str) -> Result<Self, CanError> {
+        let mut path = PathBuf::from(libpath);
+        path.push(BITRATE_CFG_FILENAME);
+        let data = read_to_string(&path)
+            .map_err(|e| CanError::OtherError(format!("Unable to read `{:?}`: {:?}", path, e)))?;
         let result = serde_yaml::from_str(&data)
             .map_err(|e| CanError::OtherError(format!("Error parsing YAML: {:?}", e)))?;
 
@@ -113,11 +108,11 @@ impl ZCanChlCfgInner {
     }
 
     pub(crate) fn try_from_with(
-        bc: &BitrateCfg,
+        ctx: &BitrateCtx,
         cfg: &ChannelConfig
     ) -> Result<Self, CanError> {
         let bitrate = cfg.bitrate();
-        match bc.bitrate.get(&bitrate.to_string()) {
+        match ctx.bitrate.get(&bitrate.to_string()) {
             Some(v) => {
                 let &timing0 = v.get(TIMING0)
                     .ok_or(CanError::OtherError(format!("`{}` is not configured in file!", TIMING0)))?;
@@ -129,8 +124,8 @@ impl ZCanChlCfgInner {
                         .unwrap_or(ZCanChlMode::Normal as u8),
                     timing0,
                     timing1,
-                    cfg.get_other::<u8>(FILTER)?
-                        .unwrap_or(0xFF),
+                    cfg.get_other::<u8>(FILTER_TYPE)?
+                        .unwrap_or(ZCanFilterType::default() as u8),
                     cfg.get_other::<u32>(ACC_CODE)?,
                     cfg.get_other::<u32>(ACC_MASK)?,
                 )

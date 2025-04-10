@@ -1,12 +1,13 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use dlopen2::symbor::Container;
 use rs_can::{CanError, ChannelConfig};
 
-use crate::can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType, constant::{ZCAN_VAR, ZCAN_ENV, ZCAN_PATH_DEFAULT}};
+use crate::can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use crate::device::{DeriveInfo, Handler, ZCanDeviceType, ZChannelContext, ZDeviceContext, ZDeviceInfo};
 use crate::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe};
 use crate::api::{USBCANApi, USBCANEApi, USBCANFDApi, USBCANFD800UApi, ZCanApi, ZDeviceApi, ZLinApi};
 use crate::driver::{lin_support, ZDevice};
+use crate::utils;
 
 #[cfg(target_arch = "x86")]
 const LIB_PATH: &str = "linux/x86/";
@@ -15,6 +16,7 @@ const LIB_PATH: &str = "linux/x86_64/";
 
 #[derive(Clone)]
 pub struct ZCanDriver {
+    pub(crate) libpath:           String,
     pub(crate) handler:           Option<Handler>,
     pub(crate) usbcan_api:        Arc<Container<USBCANApi<'static>>>,
     pub(crate) usbcan_4e_api:     Arc<Container<USBCANEApi<'static>>>,
@@ -27,26 +29,22 @@ pub struct ZCanDriver {
 }
 
 impl ZDevice for ZCanDriver {
-    fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
+    fn new(libpath: String, dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
-        let libpath = match dotenvy::from_filename(ZCAN_ENV) {
-            Ok(_) => match std::env::var(ZCAN_VAR) {
-                Ok(v) => format!("{}/{}", v, LIB_PATH),
-                Err(_) => format!("{}/{}", ZCAN_PATH_DEFAULT, LIB_PATH),
-            },
-            Err(_) => format!("{}/{}", ZCAN_PATH_DEFAULT, LIB_PATH),
-        };
+        let mut path = PathBuf::from(&libpath);
+        path.push(LIB_PATH);
         Ok(Self {
+            libpath,
             handler: Default::default(),
-            usbcan_api: Arc::new(unsafe { Container::load(format!("{}libusbcan.so", libpath)) }
+            usbcan_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcan.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcan_4e_api: Arc::new(unsafe { Container::load(format!("{}libusbcan-4e.so", libpath)) }
+            usbcan_4e_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcan-4e.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcan_8e_api: Arc::new(unsafe { Container::load(format!("{}libusbcan-8e.so", libpath)) }
+            usbcan_8e_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcan-8e.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcanfd_api: Arc::new(unsafe { Container::load(format!("{}libusbcanfd.so", libpath)) }
+            usbcanfd_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcanfd.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcanfd_800u_api: Arc::new(unsafe { Container::load(format!("{}libusbcanfd800u.so", libpath)) }
+            usbcanfd_800u_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcanfd800u.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
             dev_type,
             dev_idx,
@@ -191,7 +189,7 @@ impl ZDevice for ZCanDriver {
                 }
 
                 if self.dev_type == ZCanDeviceType::ZCAN_USBCAN_4E_U {
-                    return self.usbcan_4e_api.init_can_chl_ex(dev_hdl, channels, &cfg);
+                    return self.usbcan_4e_api.init_can_chl_ex(&self.libpath, dev_hdl, channels, &cfg);
                 }
 
                 let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), channel);
@@ -202,7 +200,7 @@ impl ZDevice for ZCanDriver {
                             self.usbcan_api.reset_can_chl(context).unwrap_or_else(|e| log::warn!("{}", e));
                             dev_hdl.remove_can(channel);
                         }
-                        self.usbcan_api.init_can_chl(&mut context, &cfg)?;
+                        self.usbcan_api.init_can_chl(&self.libpath, &mut context, &cfg)?;
                     },
                     // ZCanDeviceType::ZCAN_USBCAN_4E_U => {
                     //     if let Some(chl_hdl) = dev_hdl.find_can(idx) {
@@ -216,7 +214,7 @@ impl ZDevice for ZCanDriver {
                             self.usbcan_8e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
                             dev_hdl.remove_can(channel);
                         }
-                        self.usbcan_8e_api.init_can_chl(&mut context, &cfg)?;
+                        self.usbcan_8e_api.init_can_chl(&self.libpath, &mut context, &cfg)?;
                     },
                     ZCanDeviceType::ZCAN_USBCANFD_MINI
                     | ZCanDeviceType::ZCAN_USBCANFD_100U
@@ -225,7 +223,7 @@ impl ZDevice for ZCanDriver {
                             self.usbcanfd_api.reset_can_chl(context)?;
                             dev_hdl.remove_can(channel);
                         }
-                        self.usbcanfd_api.init_can_chl(&mut context, &cfg)?;
+                        self.usbcanfd_api.init_can_chl(&self.libpath, &mut context, &cfg)?;
                     },
                     ZCanDeviceType::ZCAN_USBCANFD_800U => {
                         if let Some(chl_hdl) = dev_hdl.find_can(channel) {
@@ -233,7 +231,7 @@ impl ZDevice for ZCanDriver {
                             dev_hdl.remove_can(channel);
                         }
                         self.usbcanfd_800u_api.init_can_chl_ex(self.dev_type, self.dev_idx, channel, &cfg)?;
-                        self.usbcanfd_800u_api.init_can_chl(&mut context, &cfg)?;
+                        self.usbcanfd_800u_api.init_can_chl(&self.libpath, &mut context, &cfg)?;
                     },
                     _ => return Err(CanError::NotSupportedError),
                 }

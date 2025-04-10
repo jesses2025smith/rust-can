@@ -1,19 +1,31 @@
 mod utils;
 
 use zlgcan_rs::device::ZCanDeviceType;
-use self::utils::can_device2;
+use self::utils::{can_device2, device_open};
 
 #[test]
 fn usbcan_4eu() -> anyhow::Result<()> {
     let dev_type = ZCanDeviceType::ZCAN_USBCAN_4E_U;
-    can_device2(dev_type, 4, 4, 0, 1, None)?;
+    let dev_idx = 0;
+    let channels = 4;
+    let available = 4;
+    let canfd = false;
+
+    let mut driver = device_open(dev_type, dev_idx, None, channels, available, canfd)?;
+    can_device2(&mut driver, 0, 1)?;
     Ok(())
 }
 
 #[test]
 fn usbcan_8eu() -> anyhow::Result<()> {
     let dev_type = ZCanDeviceType::ZCAN_USBCAN_8E_U;
-    can_device2(dev_type, 8, 8, 0, 1, None)?;
+    let dev_idx = 0;
+    let channels = 8;
+    let available = 8;
+    let canfd = false;
+
+    let mut driver = device_open(dev_type, dev_idx, None, channels, available, canfd)?;
+    can_device2(&mut driver, 0, 1)?;
     Ok(())
 }
 

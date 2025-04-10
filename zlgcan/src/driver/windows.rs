@@ -1,12 +1,13 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use dlopen2::symbor::Container;
 use rs_can::{CanError, ChannelConfig};
-use crate::can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType, constant::{ZCAN_VAR, ZCAN_ENV, ZCAN_PATH_DEFAULT}};
+use crate::can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use crate::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use crate::device::{DeriveInfo, Handler, ZCanDeviceType, ZChannelContext, ZDeviceContext, ZDeviceInfo};
 use crate::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe};
 use crate::api::{WinApi, ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
 use crate::driver::ZDevice;
+use crate::utils;
 
 #[cfg(target_arch = "x86")]
 const LIB_PATH: &str = "windows/x86/";
@@ -15,6 +16,7 @@ const LIB_PATH: &str = "windows/x86_64/";
 
 #[derive(Clone)]
 pub struct ZCanDriver {
+    pub(crate) libpath:    String,
     pub(crate) handler:    Option<Handler>,
     pub(crate) api:        Arc<Container<WinApi<'static>>>,
     pub(crate) dev_type:   ZCanDeviceType,
@@ -23,21 +25,15 @@ pub struct ZCanDriver {
 }
 
 impl ZDevice for ZCanDriver {
-    fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
-        let libpath = match dotenvy::from_filename(ZCAN_ENV) {
-            Ok(_) => match std::env::var(ZCAN_VAR) {
-                Ok(v) => format!("{}/{}", v, LIB_PATH),
-                Err(_) => format!("{}/{}", ZCAN_PATH_DEFAULT, LIB_PATH),
-            },
-            Err(_) => format!("{}/{}", ZCAN_PATH_DEFAULT, LIB_PATH),
-        };
-        let libpath = format!("{}zlgcan.dll", libpath);
+    fn new(libpath: String, dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
+        let mut path = PathBuf::from(&libpath);
+        path.push(LIB_PATH);
         let api =  Arc::new(unsafe {
-            Container::load(&libpath)
-                .map_err(|_| CanError::InitializeError(format!("can't open library: {}", libpath)))
+            Container::load(&utils::get_libpath(path.clone(), "zlgcan.dll"))
+                .map_err(|e| CanError::InitializeError(e.to_string()))
         }?);
         let dev_type = ZCanDeviceType::try_from(dev_type)?;
-        Ok(Self { handler: Default::default(), api, dev_type, dev_idx, derive })
+        Ok(Self { libpath, handler: Default::default(), api, dev_type, dev_idx, derive })
     }
 
     fn device_type(&self) -> ZCanDeviceType {
@@ -110,7 +106,7 @@ impl ZDevice for ZCanDriver {
                 }
 
                 let mut context =  ZChannelContext::new(dev_hdl.device_context().clone(), channel);
-                self.api.init_can_chl(&mut context, &cfg)?;
+                self.api.init_can_chl(&self.libpath, &mut context, &cfg)?;
 
                 dev_hdl.add_can(channel, context);
 

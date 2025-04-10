@@ -55,7 +55,7 @@ pub trait ZDeviceApi {
 
 #[allow(unused_variables)]
 pub trait ZCanApi {
-    fn init_can_chl(&self, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError>;
+    fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError>;
     fn reset_can_chl(&self, context: &ZChannelContext) -> Result<(), CanError>;
     fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError>;
     fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError>;

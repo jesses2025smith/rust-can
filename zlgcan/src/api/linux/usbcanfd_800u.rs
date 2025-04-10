@@ -283,12 +283,12 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
 }
 
 impl ZCanApi for USBCANFD800UApi<'_> {
-    fn init_can_chl(&self, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
+    fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
         unsafe {
             // init can channel
             let (dev_type, dev_hdl, channel) = (context.device_type(), context.device_handler()?, context.channel());
-            let cfg_ctx = CanChlCfgContext::new()?;
-            let bc_ctx = cfg_ctx.0.get(&dev_type.to_string())
+            let cfg_ctx = CanChlCfgContext::new(libpath)?;
+            let bc_ctx = cfg_ctx.0.get(&(dev_type as u32).to_string())
                 .ok_or(CanError::InitializeError(
                     format!("device: {} is not configured in {}", dev_type, BITRATE_CFG_FILENAME)
                 ))?;
@@ -367,7 +367,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
 
     fn receive_can(&self, context: &ZChannelContext, size: u32, timeout: u32) -> Result<Vec<CanMessage>, CanError> {
         let mut frames = Vec::new();
-        frames.resize(size as usize, ZCanFrame { can: ZCanFrameInner { other: Default::default() } });
+        frames.resize(size as usize, ZCanFrame { can: ZCanFrameInner { libother: Default::default() } });
 
         let ret = unsafe { (self.ZCAN_Receive)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
@@ -379,15 +379,15 @@ impl ZCanApi for USBCANFD800UApi<'_> {
 
         Ok(frames.into_iter()
             .map(|mut frame| unsafe {
-                frame.can.other.set_channel(context.channel());
-                frame.can.other.into()
+                frame.can.libother.set_channel(context.channel());
+                frame.can.libother.into()
             })
             .collect::<Vec<_>>())
     }
 
     fn transmit_can(&self, context: &ZChannelContext, frames: Vec<CanMessage>) -> Result<u32, CanError> {
         let frames = frames.into_iter()
-            .map(|frame| ZCanFrame { can: ZCanFrameInner { other: frame.into() } })
+            .map(|frame| ZCanFrame { can: ZCanFrameInner { libother: frame.into() } })
             .collect::<Vec<_>>();
 
         let len = frames.len() as u32;
@@ -403,7 +403,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
 
     fn receive_canfd(&self, context: &ZChannelContext, size: u32, timeout: u32) -> Result<Vec<CanMessage>, CanError> {
         let mut frames = Vec::new();
-        frames.resize(size as usize, ZCanFrame { canfd: ZCanFdFrameInner { other: Default::default() } });
+        frames.resize(size as usize, ZCanFrame { canfd: ZCanFdFrameInner { libother: Default::default() } });
 
         let ret = unsafe { (self.ZCAN_ReceiveFD)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
@@ -415,15 +415,15 @@ impl ZCanApi for USBCANFD800UApi<'_> {
 
         Ok(frames.into_iter()
             .map(|mut frame| unsafe {
-                frame.canfd.other.set_channel(context.channel());
-                frame.canfd.other.into()
+                frame.canfd.libother.set_channel(context.channel());
+                frame.canfd.libother.into()
             })
             .collect::<Vec<_>>())
     }
 
     fn transmit_canfd(&self, context: &ZChannelContext, frames: Vec<CanMessage>) -> Result<u32, CanError> {
         let frames = frames.into_iter()
-            .map(|frame| ZCanFrame { canfd: ZCanFdFrameInner { other: frame.into() } })
+            .map(|frame| ZCanFrame { canfd: ZCanFdFrameInner { libother: frame.into() } })
             .collect::<Vec<_>>();
 
         let len = frames.len() as u32;

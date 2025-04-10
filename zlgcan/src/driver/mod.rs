@@ -1,4 +1,4 @@
-use rs_can::{interfaces, CanDevice, CanError, CanFrame, CanResult, CanType, ChannelConfig, DeviceBuilder};
+use rs_can::{CanDevice, CanError, CanFrame, CanResult, CanType, ChannelConfig, DeviceBuilder};
 use crate::can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType};
 use crate::cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData};
 use crate::constants;
@@ -73,17 +73,15 @@ impl TryFrom<DeviceBuilder> for ZCanDriver {
     type Error = CanError;
 
     fn try_from(builder: DeviceBuilder) -> Result<Self, Self::Error> {
-        if builder.interface() != interfaces::ZLGCAN {
-            return Err(CanError::interface_not_matched(builder.interface()));
-        }
-
+        let libpath = builder.get_other::<String>(constants::LIBPATH)?
+            .ok_or(CanError::other_error("`libpath` not found`"))?;
         let dev_type = builder.get_other::<u32>(constants::DEVICE_TYPE)?
             .ok_or(CanError::other_error("`device_type` not found`"))?;
         let dev_idx = builder.get_other::<u32>(constants::DEVICE_INDEX)?
             .ok_or(CanError::other_error("`device_index` not found`"))?;
         let derive = builder.get_other::<DeriveInfo>(constants::DERIVE_INFO)?;
 
-        let mut device = Self::new(dev_type, dev_idx, derive)?;
+        let mut device = Self::new(libpath, dev_type, dev_idx, derive)?;
         device.open()?;
 
         builder.channel_configs()
@@ -100,7 +98,7 @@ impl TryFrom<DeviceBuilder> for ZCanDriver {
 
 #[allow(unused_variables)]
 pub trait ZDevice {
-    fn new(dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError>
+    fn new(libpath: String, dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError>
         where Self: Sized;
     fn device_type(&self) -> ZCanDeviceType;
     fn device_index(&self) -> u32;

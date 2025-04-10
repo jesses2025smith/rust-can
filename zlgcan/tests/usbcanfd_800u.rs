@@ -1,11 +1,17 @@
 mod utils;
 
 use zlgcan_rs::device::ZCanDeviceType;
-use self::utils::canfd_device2;
+use self::utils::{canfd_device2, device_open};
 
 #[test]
 fn usbcanfd_800u() -> anyhow::Result<()> {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_800U;
-    canfd_device2(dev_type, 8, 8, 0, 1)?;
+    let dev_idx = 0;
+    let channels = 8;
+    let available = 8;
+    let canfd = true;
+
+    let mut driver = device_open(dev_type, dev_idx, None, channels, available, canfd)?;
+    canfd_device2(&mut driver, available, 0, 1)?;
     Ok(())
 }

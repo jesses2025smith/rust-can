@@ -93,10 +93,10 @@ impl ZDeviceApi for USBCANApi<'_> {
 }
 
 impl ZCanApi for USBCANApi<'_> {
-    fn init_can_chl(&self, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
+    fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
-        let cfg_ctx = CanChlCfgContext::new()?;
-        let bc_ctx = cfg_ctx.0.get(&dev_type.to_string())
+        let cfg_ctx = CanChlCfgContext::new(libpath)?;
+        let bc_ctx = cfg_ctx.0.get(&(dev_type as u32).to_string())
             .ok_or(CanError::InitializeError(
                 format!("device: {} is not configured in {}", dev_type, BITRATE_CFG_FILENAME)
             ))?;
@@ -173,7 +173,7 @@ impl ZCanApi for USBCANApi<'_> {
     fn receive_can(&self, context: &ZChannelContext, size: u32, timeout: u32) -> Result<Vec<CanMessage>, CanError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
         let mut frames = Vec::new();
-        frames.resize(size as usize, ZCanFrame { can: ZCanFrameInner { usbcan: Default::default() } });
+        frames.resize(size as usize, ZCanFrame { can: ZCanFrameInner { libusbcan: Default::default() } });
 
         let ret = unsafe { (self.VCI_Receive)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
@@ -185,14 +185,14 @@ impl ZCanApi for USBCANApi<'_> {
 
         Ok(frames.into_iter()
             .map(|mut frame| unsafe {
-                frame.can.usbcan.into()
+                frame.can.libusbcan.into()
             })
             .collect::<Vec<_>>())
     }
 
     fn transmit_can(&self, context: &ZChannelContext, frames: Vec<CanMessage>) -> Result<u32, CanError> {
         let frames = frames.into_iter()
-            .map(|frame| ZCanFrame { can: ZCanFrameInner { usbcan: frame.into() } })
+            .map(|frame| ZCanFrame { can: ZCanFrameInner { libusbcan: frame.into() } })
             .collect::<Vec<_>>();
 
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
@@ -252,7 +252,7 @@ mod tests {
         assert!(!dev_info.canfd());
 
         let mut context = ZChannelContext::new(context, channel);
-        api.init_can_chl(&mut context, &cfg)?;
+        api.init_can_chl("library", &mut context, &cfg)?;
         let frame = CanMessage::new(
             CanId::from_bits(0x7E0, Some(false)),
             [0x01, 0x02, 0x03].as_slice()
