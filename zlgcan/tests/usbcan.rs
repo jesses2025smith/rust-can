@@ -1,20 +1,29 @@
 mod utils;
 
 use zlgcan_rs::device::{DeriveInfo, ZCanDeviceType};
-use self::utils::{can_device1, can_device2};
+use self::utils::{can_device1, can_device2, device_open};
 
 #[test]
 fn usbcan_official1() -> anyhow::Result<()> {
     let dev_type = ZCanDeviceType::ZCAN_USBCAN1;
-    can_device1(dev_type, None)?;
+    let dev_idx = 0;
+    let channels = 1;
+    let available = 1;
+    let mut driver = device_open(dev_type, dev_idx, None, channels, available, false)?;
+    can_device1(&mut driver)?;
     Ok(())
 }
 
 #[test]
 fn usbcan_derive1() -> anyhow::Result<()> {
     let dev_type = ZCanDeviceType::ZCAN_USBCAN1;
-    let derive_info = DeriveInfo::new(false, 1);
-    can_device1(dev_type, Some(derive_info))?;
+    let dev_idx = 0;
+    let channels = 1;
+    let available = 1;
+    let canfd = false;
+    let derive_info = DeriveInfo::new(canfd, channels);
+    let mut driver = device_open(dev_type, dev_idx, Some(derive_info), channels, available, canfd)?;
+    can_device1(&mut driver)?;
     Ok(())
 }
 
@@ -26,9 +35,14 @@ fn usbcan_official2() {
 #[test]
 fn usbcan_derive2() -> anyhow::Result<()> {
     let dev_type = ZCanDeviceType::ZCAN_USBCAN2;
-    let derive_info = DeriveInfo::new(false, 2);
+    let dev_idx = 0;
+    let channels = 2;
+    let available = 2;
+    let canfd = false;
 
-    can_device2(dev_type, 2, 2, 0, 1, Some(derive_info))?;
+    let derive_info = DeriveInfo::new(canfd, 2);
+    let mut driver = device_open(dev_type, dev_idx, Some(derive_info), channels, available, canfd)?;
+    can_device2(&mut driver, 0, 1)?;
     Ok(())
 }
 
