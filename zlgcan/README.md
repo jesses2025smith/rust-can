@@ -1,5 +1,5 @@
 [![Latest version](https://img.shields.io/crates/v/zlgcan.svg)](https://crates.io/crates/zlgcan)
-[![Documentation](https://docs.rs/bleasy/badge.svg)](https://docs.rs/zlgcan)
+[![Documentation](https://docs.rs/zlgcan/badge.svg)](https://docs.rs/zlgcan)
 ![LGPL](https://img.shields.io/badge/license-LGPL-green.svg)
 ![MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
 ![Downloads](https://img.shields.io/crates/d/zlgcan)
