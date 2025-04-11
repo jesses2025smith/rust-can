@@ -61,7 +61,7 @@ pub fn device_open(
         let mut cfg = ChannelConfig::new(500_000);
         cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO))
             .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
-        builder.add_config(i.to_string(), cfg);
+        builder.add_config(i, cfg);
     }
 
     let device = builder.build::<ZCanDriver>()?;

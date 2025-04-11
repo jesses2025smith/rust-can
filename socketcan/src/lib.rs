@@ -369,10 +369,10 @@ impl SocketCan {
     }
 }
 
-impl TryFrom<DeviceBuilder> for SocketCan {
+impl TryFrom<DeviceBuilder<String>> for SocketCan {
     type Error = CanError;
 
-    fn try_from(builder: DeviceBuilder) -> Result<Self, Self::Error> {
+    fn try_from(builder: DeviceBuilder<String>) -> Result<Self, Self::Error> {
         let mut device = SocketCan::new();
         builder.channel_configs()
             .iter()

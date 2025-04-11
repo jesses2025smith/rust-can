@@ -69,10 +69,10 @@ impl CanDevice for ZCanDriver {
     }
 }
 
-impl TryFrom<DeviceBuilder> for ZCanDriver {
+impl TryFrom<DeviceBuilder<u8>> for ZCanDriver {
     type Error = CanError;
 
-    fn try_from(builder: DeviceBuilder) -> Result<Self, Self::Error> {
+    fn try_from(builder: DeviceBuilder<u8>) -> Result<Self, Self::Error> {
         let libpath = builder.get_other::<String>(constants::LIBPATH)?
             .ok_or(CanError::other_error("`libpath` not found`"))?;
         let dev_type = builder.get_other::<ZCanDeviceType>(constants::DEVICE_TYPE)?
@@ -86,9 +86,7 @@ impl TryFrom<DeviceBuilder> for ZCanDriver {
 
         builder.channel_configs()
             .iter()
-            .try_for_each(|(chl, cfg)| {
-                let chl = chl.parse::<u8>()
-                    .map_err(|_| CanError::other_error("`chl` not a number"))?;
+            .try_for_each(|(&chl, cfg)| {
                 device.init_can_chl(chl, cfg)
             })?;
 

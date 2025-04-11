@@ -1,4 +1,4 @@
-use std::{any::{Any, type_name}, collections::HashMap, fmt::Display};
+use std::{any::{Any, type_name}, collections::HashMap, hash::Hash};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use crate::error::Error;
@@ -19,8 +19,8 @@ pub trait Listener<C, F: Frame>: Send {
     fn on_frame_received(&self, channel: C, frames: &[F]);
 }
 
-pub trait Device: Clone + TryFrom<DeviceBuilder, Error = Error> {
-    type Channel: Display;
+pub trait Device: Clone + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
+    type Channel: Hash + Eq;
     type Frame: Frame<Channel = Self::Channel>;
     #[inline]
     fn is_closed(&self) -> bool {
@@ -77,18 +77,18 @@ impl ChannelConfig {
 }
 
 #[derive(Debug, Default, Getters)]
-pub struct DeviceBuilder {
+pub struct DeviceBuilder<K: Hash + Eq> {
     #[getter(rename = "channel_configs")]
-    configs: HashMap<String, ChannelConfig>,
+    configs: HashMap<K, ChannelConfig>,
     others: HashMap<String, Box<dyn Any>>,
 }
 
-impl DeviceBuilder {
+impl<K: Hash + Eq + Default> DeviceBuilder<K> {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn add_config<S: Into<String>>(&mut self, channel: S, cfg: ChannelConfig) -> &mut Self {
+    pub fn add_config(&mut self, channel: K, cfg: ChannelConfig) -> &mut Self {
         self.configs.insert(channel.into(), cfg);
         self
     }
@@ -102,7 +102,7 @@ impl DeviceBuilder {
         get_other(&self.others, name)
     }
 
-    pub fn build<T: Device>(self) -> Result<T, Error> {
+    pub fn build<T: Device<Channel = K>>(self) -> Result<T, Error> {
         self.try_into()
     }
 }

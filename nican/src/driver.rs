@@ -321,10 +321,10 @@ impl NiCan {
     }
 }
 
-impl TryFrom<DeviceBuilder> for NiCan {
+impl TryFrom<DeviceBuilder<String>> for NiCan {
     type Error = CanError;
 
-    fn try_from(builder: DeviceBuilder) -> Result<Self, Self::Error> {
+    fn try_from(builder: DeviceBuilder<String>) -> Result<Self, Self::Error> {
         let libpath = builder.get_other::<String>(LIBPATH)?;
         let mut device = NiCan::new(libpath.as_deref())?;
         builder.channel_configs()

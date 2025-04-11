@@ -44,8 +44,8 @@ fn main() -> Result<(), CanError> {
         .add_other(LIBPATH, Box::new("library".to_string()))
         .add_other(DEVICE_TYPE, Box::new(ZCanDeviceType::ZCAN_USBCANFD_200U))
         .add_other(DEVICE_INDEX, Box::new(0))
-        .add_config(0.to_string(), ch1_cfg)
-        .add_config(1.to_string(), ch2_cfg);
+        .add_config(0, ch1_cfg)
+        .add_config(1, ch2_cfg);
 
     let device = builder.build::<ZCanDriver>()?;
     // todo something
