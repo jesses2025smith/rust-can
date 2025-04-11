@@ -85,12 +85,12 @@ impl ZCanChlCfg {
                 can_type: can_type as u32,
                 cfg: ZCanChlCfgUnion {
                     canfd: common::ZCanFdChlCfgInner::new(
-                        cfg.get_other::<u8>(constants::CHANNEL_MODE)?
-                            .unwrap_or(ZCanChlMode::Normal as u8),
+                        cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
+                            .unwrap_or(ZCanChlMode::Normal),
                         aset.get_timing(),  // timing0 and timing1 ignored expect USBCANFD_800U
                         dset.get_timing(),
-                        cfg.get_other::<u8>(constants::FILTER_TYPE)?
-                            .unwrap_or(ZCanFilterType::default() as u8),
+                        cfg.get_other::<ZCanFilterType>(constants::FILTER_TYPE)?
+                            .unwrap_or(ZCanFilterType::default()),
                         cfg.get_other::<u32>(constants::ACC_CODE)?,
                         cfg.get_other::<u32>(constants::ACC_MASK)?,
                         cfg.get_other::<u32>(constants::BRP)?,

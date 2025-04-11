@@ -281,10 +281,8 @@ impl ZCanApi for WinApi<'_> {
                 self.set_value(context, &resistance_path, value.as_ptr() as *const c_void)?;
             }
 
-            let can_type = match cfg.get_other::<u8>(CHANNEL_TYPE)? {
-                Some(v) => ZCanChlType::try_from(v)?,
-                None => Default::default(),
-            };
+            let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+                .unwrap_or(ZCanChlType::default());
             if !matches!(dev_type, ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2) {
                 // set channel protocol
                 let protocol_path = format!("{}/{}", channel, PROTOCOL);

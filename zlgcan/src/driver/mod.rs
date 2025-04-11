@@ -75,7 +75,7 @@ impl TryFrom<DeviceBuilder> for ZCanDriver {
     fn try_from(builder: DeviceBuilder) -> Result<Self, Self::Error> {
         let libpath = builder.get_other::<String>(constants::LIBPATH)?
             .ok_or(CanError::other_error("`libpath` not found`"))?;
-        let dev_type = builder.get_other::<u32>(constants::DEVICE_TYPE)?
+        let dev_type = builder.get_other::<ZCanDeviceType>(constants::DEVICE_TYPE)?
             .ok_or(CanError::other_error("`device_type` not found`"))?;
         let dev_idx = builder.get_other::<u32>(constants::DEVICE_INDEX)?
             .ok_or(CanError::other_error("`device_index` not found`"))?;
@@ -98,7 +98,7 @@ impl TryFrom<DeviceBuilder> for ZCanDriver {
 
 #[allow(unused_variables)]
 pub trait ZDevice {
-    fn new(libpath: String, dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError>
+    fn new(libpath: String, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError>
         where Self: Sized;
     fn device_type(&self) -> ZCanDeviceType;
     fn device_index(&self) -> u32;

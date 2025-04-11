@@ -13,7 +13,7 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 license = "MIT OR GPL-3.0"
 authors = ["Jesse Smith <jesses2025smith@gmail.com>"]

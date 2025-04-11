@@ -28,7 +28,7 @@ fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> anyh
         let mut frame = CanMessage::new(id, data.as_slice())
             .ok_or(CanError::OtherError("invalid data length".to_string()))?;
         frame.set_timestamp(None);
-        frame.set_tx_mode(ZCanTxMode::Normal as u8);
+        frame.set_tx_mode(ZCanTxMode::Normal);
 
         if canfd {
             frame.set_bitrate_switch(brs.unwrap_or_default());
@@ -51,7 +51,7 @@ pub fn device_open(
     let mut builder = DeviceBuilder::new();
     builder
         .add_other(LIBPATH, Box::new("library/".to_string()))
-        .add_other(DEVICE_TYPE, Box::new(dev_type as u32))
+        .add_other(DEVICE_TYPE, Box::new(dev_type))
         .add_other(DEVICE_INDEX, Box::new(dev_idx));
     if let Some(derive_info) = derive_info {
         builder.add_other(DERIVE_INFO, Box::new(derive_info));
@@ -59,8 +59,8 @@ pub fn device_open(
 
     for i in 0..available {
         let mut cfg = ChannelConfig::new(500_000);
-        cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO as u8))
-            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8));
+        cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO))
+            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
         builder.add_config(i.to_string(), cfg);
     }
 
@@ -174,6 +174,7 @@ fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_coun
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn can_device1(driver: &mut ZCanDriver) -> anyhow::Result<()> {
     let trans_ch = 0;
     let recv_ch = 0;
@@ -186,6 +187,7 @@ pub fn can_device1(driver: &mut ZCanDriver) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn can_device2(driver: &mut ZCanDriver, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let comm_count = 5;
     let ext_count = 5;
@@ -196,6 +198,7 @@ pub fn can_device2(driver: &mut ZCanDriver, trans_ch: u8, recv_ch: u8) -> anyhow
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn canfd_device2(driver: &mut ZCanDriver, available: u8, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let comm_count = 5;
     let ext_count = 5;
@@ -208,8 +211,8 @@ pub fn canfd_device2(driver: &mut ZCanDriver, available: u8, trans_ch: u8, recv_
     for i in 0..available {
         let mut cfg = ChannelConfig::new(500_000);
         cfg.set_data_bitrate(1_000_000)
-            .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO as u8))
-            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8));
+            .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO))
+            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
         driver.init_can_chl(i, &cfg)?;
     }
     transmit_canfd(&driver, comm_count, ext_count, brs_count, trans_ch, recv_ch)?;

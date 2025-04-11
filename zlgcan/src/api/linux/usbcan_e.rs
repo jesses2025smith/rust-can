@@ -124,8 +124,8 @@ impl USBCANEApi<'_> {
             let cmd_path = CString::new(channel_work_mode(channel))
                 .map_err(|e| CanError::OtherError(e.to_string()))?;
             let mode = CString::new(
-                cfg.get_other::<u8>(CHANNEL_MODE)?
-                    .unwrap_or(ZCanChlMode::Normal as u8)
+                cfg.get_other::<ZCanChlMode>(CHANNEL_MODE)?
+                    .unwrap_or(ZCanChlMode::Normal) as u8
                     .to_string()
             )
                 .map_err(|e| CanError::OtherError(e.to_string()))?;
@@ -206,11 +206,11 @@ impl ZCanApi for USBCANEApi<'_> {
                     }
                 },
                 ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                    let chl_type = cfg.get_other::<u8>(CHANNEL_TYPE)?
-                        .unwrap_or(ZCanChlType::CAN as u8);
+                    let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+                        .unwrap_or(ZCanChlType::CAN);
                     let cfg = ZCanChlCfg::new(
                         dev_type,
-                        ZCanChlType::try_from(chl_type)?,
+                        can_type,
                         bc_ctx,
                         cfg
                     )?;

@@ -221,8 +221,8 @@ impl CanMessage {
         self.tx_mode.unwrap_or_else(|| ZCanTxMode::default() as u8)
     }
     #[inline(always)]
-    pub fn set_tx_mode(&mut self, tx_mode: u8) -> &mut Self {
-        self.tx_mode = if tx_mode > 3 { Some(ZCanTxMode::default() as u8) } else { Some(tx_mode) };
+    pub fn set_tx_mode(&mut self, tx_mode: ZCanTxMode) -> &mut Self {
+        self.tx_mode = Some(tx_mode as u8);
         self
     }
 }

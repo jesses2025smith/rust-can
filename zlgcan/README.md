@@ -33,16 +33,16 @@ fn main() -> Result<(), CanError> {
     let mut builder = DeviceBuilder::new();
 
     let mut ch1_cfg = ChannelConfig::new(500_000);
-    ch1_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8))
-        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN as u8));
+    ch1_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal))
+        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN));
 
     let mut ch2_cfg = ChannelConfig::new(500_000);
-    ch2_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8))
-        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN as u8));
+    ch2_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal))
+        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN));
 
     builder
         .add_other(LIBPATH, Box::new("library".to_string()))
-        .add_other(DEVICE_TYPE, Box::new(ZCanDeviceType::ZCAN_USBCANFD_200U as u32))
+        .add_other(DEVICE_TYPE, Box::new(ZCanDeviceType::ZCAN_USBCANFD_200U))
         .add_other(DEVICE_INDEX, Box::new(0))
         .add_config(0.to_string(), ch1_cfg)
         .add_config(1.to_string(), ch2_cfg);

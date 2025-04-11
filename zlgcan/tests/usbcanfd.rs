@@ -12,8 +12,8 @@ fn only_recv(driver: &mut ZCanDriver, available: u8, recv_ch: u8) -> anyhow::Res
     for i in 0..available {
         let mut cfg = ChannelConfig::new(500_000);
         cfg.set_data_bitrate(1_000_000)
-            .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO as u8))
-            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8));
+            .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO))
+            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
         driver.init_can_chl(i, &cfg)?;
     }
 

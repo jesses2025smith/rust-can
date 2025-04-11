@@ -46,8 +46,8 @@ pub union ZCanChlCfgUnion {
 }
 
 pub(crate) fn get_fd_cfg(
-    can_type: u8,
-    mode: u8,
+    can_type: ZCanChlType,
+    mode: ZCanChlMode,
     bitrate: u32,
     dbitrate: Option<u32>,
     ctx: &BitrateCtx,
@@ -55,11 +55,10 @@ pub(crate) fn get_fd_cfg(
     let (aset, dset) = super::get_fd_set(bitrate, dbitrate, ctx)?;
     let clock = ctx.clock
         .ok_or(CanError::other_error("`clock` is not configured in file!"))?;
-    let can_type = ZCanChlType::try_from(can_type)?;
 
     Ok(self::ZCanFdChlCfgInner::new(
         can_type,
-        ZCanChlMode::try_from(mode)?,
+        mode,
         clock,
         aset,
         dset,

@@ -234,8 +234,8 @@ mod tests {
         let api = unsafe { USBCANApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");
 
         let mut cfg = ChannelConfig::new(500_000);
-        cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN as u8))
-            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8));
+        cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN))
+            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
 
         let mut context = ZDeviceContext::new(dev_type, dev_idx, false);
         api.open(&mut context)?;

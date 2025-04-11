@@ -87,15 +87,13 @@ pub(crate) struct ZCanChlCfgInner {
 impl ZCanChlCfgInner {
     #[inline(always)]
     pub(crate) fn new(
-        mode: u8,
+        mode: ZCanChlMode,
         timing0: u32,
         timing1: u32,
-        filter: u8,
+        filter: ZCanFilterType,
         acc_code: Option<u32>,
         acc_mask: Option<u32>
     ) -> Result<Self, CanError> {
-        let mode = ZCanChlMode::try_from(mode)?;
-        let filter = ZCanFilterType::try_from(filter)?;
         Ok(Self {
             acc_code: acc_code.unwrap_or(0),
             acc_mask: acc_mask.unwrap_or(0xFFFFFFFF),
@@ -120,12 +118,12 @@ impl ZCanChlCfgInner {
                     .ok_or(CanError::OtherError(format!("`{}` is not configured in file!", TIMING1)))?;
 
                 Self::new(
-                    cfg.get_other::<u8>(CHANNEL_MODE)?
-                        .unwrap_or(ZCanChlMode::Normal as u8),
+                    cfg.get_other::<ZCanChlMode>(CHANNEL_MODE)?
+                        .unwrap_or(ZCanChlMode::Normal),
                     timing0,
                     timing1,
-                    cfg.get_other::<u8>(FILTER_TYPE)?
-                        .unwrap_or(ZCanFilterType::default() as u8),
+                    cfg.get_other::<ZCanFilterType>(FILTER_TYPE)?
+                        .unwrap_or(ZCanFilterType::default()),
                     cfg.get_other::<u32>(ACC_CODE)?,
                     cfg.get_other::<u32>(ACC_MASK)?,
                 )
@@ -156,16 +154,14 @@ pub(crate) struct ZCanFdChlCfgInner {
 impl ZCanFdChlCfgInner {
     #[inline(always)]
     pub(crate) fn new(
-        mode: u8,
+        mode: ZCanChlMode,
         timing0: u32,
         timing1: u32,
-        filter: u8,
+        filter: ZCanFilterType,
         acc_code: Option<u32>,
         acc_mask: Option<u32>,
         brp: Option<u32>
     ) -> Result<Self, CanError> {
-        let mode = ZCanChlMode::try_from(mode)?;
-        let filter = ZCanFilterType::try_from(filter)?;
         Ok(Self {
             acc_code: acc_code.unwrap_or(0),
             acc_mask: acc_mask.unwrap_or(0xFFFFFFFF),

@@ -29,8 +29,7 @@ pub struct ZCanDriver {
 }
 
 impl ZDevice for ZCanDriver {
-    fn new(libpath: String, dev_type: u32, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
-        let dev_type = ZCanDeviceType::try_from(dev_type)?;
+    fn new(libpath: String, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
         let mut path = PathBuf::from(&libpath);
         path.push(LIB_PATH);
         Ok(Self {

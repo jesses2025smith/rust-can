@@ -131,8 +131,8 @@ impl USBCANFD800UApi<'_> {
                 cmd_path.get_reference(), &state as *const c_uint as *const c_void)?;
         }
         // set channel protocol
-        let can_type = cfg.get_other::<u32>(CHANNEL_TYPE)?
-            .unwrap_or(ZCanChlType::CANFD_ISO as u32);
+        let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+            .unwrap_or(ZCanChlType::CANFD_ISO) as u32;
         let cmd_path = CmdPath::new_reference(USBCANFD800UApi::REF_CONTROLLER_TYPE);
         self.self_set_reference(
             dev_type, dev_idx, channel,
@@ -292,11 +292,11 @@ impl ZCanApi for USBCANFD800UApi<'_> {
                 .ok_or(CanError::InitializeError(
                     format!("device: {} is not configured in {}", dev_type, BITRATE_CFG_FILENAME)
                 ))?;
-            let can_type = cfg.get_other::<u8>(CHANNEL_TYPE)?
-                .unwrap_or(ZCanChlType::CAN as u8);
+            let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+                .unwrap_or(ZCanChlType::CAN);
             let cfg = ZCanChlCfg::new(
                 dev_type,
-                ZCanChlType::try_from(can_type)?,
+                can_type,
                 bc_ctx,
                 cfg
             )?;
