@@ -45,7 +45,7 @@ jobs:
       - name: Publish
         run: |
           set -e
-          CRATES=(rs-can socketcan zlgcan)
+          CRATES=(rs-can nican socketcan zlgcan)
           
           for CRATE in "${CRATES[@]}"; do
             echo "Checking $CRATE version..."
