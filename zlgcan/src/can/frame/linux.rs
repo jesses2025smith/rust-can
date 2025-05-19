@@ -22,7 +22,7 @@ pub(crate) struct ZCanFrameVCI {
 impl Into<CanMessage> for ZCanFrameVCI {
     fn into(self) -> CanMessage {
         if self.time_flag != TIME_FLAG_VALID {
-            log::warn!("ZCanFrameVCI - time flag is invalid")
+            rsutil::warn!("ZCanFrameVCI - time flag is invalid")
         }
         let timestamp = self.timestamp as u64;
         let arbitration_id = self.can_id;

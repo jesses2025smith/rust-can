@@ -139,7 +139,7 @@ impl NiCan {
                             Self::channel_info(&channel),
                             self.status_to_str(r)
                         );
-                        log::warn!("{}", info);
+                        rsutil::warn!("{}", info);
 
                         CanError::OperationError(info)
                     })
@@ -162,7 +162,7 @@ impl NiCan {
                             Self::channel_info(&channel),
                             self.status_to_str(r)
                         );
-                        log::warn!("{}", info);
+                        rsutil::warn!("{}", info);
 
                         CanError::OperationError(info)
                     })
@@ -186,7 +186,7 @@ impl NiCan {
                 };
 
                 if let Err(r) = self.check_status(channel.as_str(), ret) {
-                    log::warn!(
+                    rsutil::warn!(
                         "{} error {} when transmit",
                         Self::channel_info(&channel),
                         self.status_to_str(r)
@@ -205,7 +205,7 @@ impl NiCan {
                 if let Err(ret) = self.wait_for_state(channel.as_str(), ctx.handle, timeout) {
                     let info = format!("{} wait for state timeout", Self::channel_info(&channel));
                     if ret == constant::CanErrFunctionTimeout as NCTYPE_STATUS {
-                        log::warn!("{}", info);
+                        rsutil::warn!("{}", info);
                     }
                     return Err(CanError::channel_timeout(Self::channel_info(&channel)));
                 }
@@ -235,7 +235,7 @@ impl NiCan {
                         Self::channel_info(&channel),
                         self.status_to_str(r)
                     );
-                    log::warn!("{}", info);
+                    rsutil::warn!("{}", info);
                     return Err(CanError::OperationError(info));
                 }
 
@@ -297,7 +297,7 @@ impl NiCan {
 
     fn check_status(&self, channel: &str, result: NCTYPE_STATUS) -> Result<(), NCTYPE_STATUS> {
         if result > 0 {
-            log::warn!("{} {}", Self::channel_info(channel), self.status_to_str(result));
+            rsutil::warn!("{} {}", Self::channel_info(channel), self.status_to_str(result));
             Ok(())
         } else if result < 0 {
             Err(result)
@@ -376,7 +376,7 @@ impl CanDevice for NiCan {
                 let ret = unsafe { (self.ncCloseObject)(ctx.handle) };
 
                 if let Err(e) = self.check_status(c, ret) {
-                    log::warn!(
+                    rsutil::warn!(
                         "{} error {} when close",
                         Self::channel_info(c),
                         self.status_to_str(e)

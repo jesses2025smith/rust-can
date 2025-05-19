@@ -1,0 +1,65 @@
+name: Rust
+
+on:
+  push:
+    tags:
+      - "v*"
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Check on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check debug code
+        run:  >
+          cargo check
+          # --verbose
+      - name: Check release code
+        run:  >
+          cargo check
+          --release
+          # --verbose
+  linux:
+    name: Check on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check debug code
+        run:  >
+          cargo check
+          # --verbose
+      - name: Check release code
+        run:  >
+          cargo check
+          --release
+          # --verbose
+  publish:
+    name: Publish to crates.io
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish
+        run: |
+          set -e
+          CRATES=(rs-can socketcan zlgcan)
+          
+          for CRATE in "${CRATES[@]}"; do
+            echo "Checking $CRATE version..."
+            VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r \
+              ".packages[] | select(.name==\"$CRATE\") | .version")
+            echo "Detected $CRATE version: $VERSION"
+            EXISTS=$(curl -s https://crates.io/api/v1/crates/${CRATE} | jq -r \
+              ".versions[] | select(.num==\"$VERSION\") | .num" || true)
+            
+            if [ "$EXISTS" == "$VERSION" ]; then
+              echo "$CRATE version $VERSION is already published. Skipping."
+            else
+              echo "Publishing {CRATE}..."
+              cargo publish -p ${CRATE} --locked --verbose --token ${{ secrets.CRATES_TOKEN }}
+              echo "Waiting for crates.io to sync..."
+              sleep 15
+          done

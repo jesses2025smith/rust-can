@@ -106,62 +106,62 @@ impl ZDevice for ZCanDriver {
                 ZCanDeviceType::ZCAN_USBCAN1
                 | ZCanDeviceType::ZCAN_USBCAN2 => {
                     for (idx, context) in cans {
-                        log::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                         self.usbcan_api.reset_can_chl(context)
-                            .unwrap_or_else(|e| log::warn!("{}", e));
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
 
                     self.usbcan_api.close(dev_hdl.device_context())
-                        .unwrap_or_else(|e| log::warn!("{}", e));
+                        .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 },
                 ZCanDeviceType::ZCAN_USBCAN_4E_U => {
                     for (idx, context) in cans {
-                        log::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                         self.usbcan_4e_api.reset_can_chl(context)
-                            .unwrap_or_else(|e| log::warn!("{}", e));
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
 
                     self.usbcan_4e_api.close(dev_hdl.device_context())
-                        .unwrap_or_else(|e| log::warn!("{}", e));
+                        .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 },
                 ZCanDeviceType::ZCAN_USBCAN_8E_U => {
                     for (idx, context) in cans {
-                        log::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                         self.usbcan_8e_api.reset_can_chl(context)
-                            .unwrap_or_else(|e| log::warn!("{}", e));
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
                     self.usbcan_8e_api.close(dev_hdl.device_context())
-                        .unwrap_or_else(|e| log::warn!("{}", e));
+                        .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 },
                 ZCanDeviceType::ZCAN_USBCANFD_MINI
                 | ZCanDeviceType::ZCAN_USBCANFD_100U
                 | ZCanDeviceType::ZCAN_USBCANFD_200U => {
                     for (idx, context) in cans {
-                        log::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                         self.usbcanfd_api.reset_can_chl(context)
-                            .unwrap_or_else(|e| log::warn!("{}", e));
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
 
                     for (idx, context) in lins {
-                        log::info!("ZLGCAN - closing LIN channel: {}", *idx);
+                        rsutil::info!("ZLGCAN - closing LIN channel: {}", *idx);
                         self.usbcanfd_api.reset_lin_chl(context)
-                            .unwrap_or_else(|e| log::warn!("{}", e));
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
 
                     self.usbcanfd_api.close(dev_hdl.device_context())
-                        .unwrap_or_else(|e| log::warn!("{}", e))
+                        .unwrap_or_else(|e| rsutil::warn!("{}", e))
                 },
                 ZCanDeviceType::ZCAN_USBCANFD_800U => {
                     for (idx, context) in cans {
-                        log::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                         self.usbcanfd_800u_api.reset_can_chl(context)
-                            .unwrap_or_else(|e| log::warn!("{}", e));
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
 
                     self.usbcanfd_800u_api.close(dev_hdl.device_context())
-                        .unwrap_or_else(|e| log::warn!("{}", e));
+                        .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 },
-                _ => log::warn!("{:?}", CanError::NotSupportedError),
+                _ => rsutil::warn!("{:?}", CanError::NotSupportedError),
             }
             self.handler = None;
         }
@@ -196,21 +196,21 @@ impl ZDevice for ZCanDriver {
                     ZCanDeviceType::ZCAN_USBCAN1
                     | ZCanDeviceType::ZCAN_USBCAN2 => {
                         if let Some(context) = dev_hdl.find_can(channel) {
-                            self.usbcan_api.reset_can_chl(context).unwrap_or_else(|e| log::warn!("{}", e));
+                            self.usbcan_api.reset_can_chl(context).unwrap_or_else(|e| rsutil::warn!("{}", e));
                             dev_hdl.remove_can(channel);
                         }
                         self.usbcan_api.init_can_chl(&self.libpath, &mut context, &cfg)?;
                     },
                     // ZCanDeviceType::ZCAN_USBCAN_4E_U => {
                     //     if let Some(chl_hdl) = dev_hdl.find_can(idx) {
-                    //         self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
+                    //         self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
                     //         dev_hdl.remove_can(idx);
                     //     }
                     //     chl_hdl = self.usbcan_4e_api.init_can_chl(dev_hdl.device_handler(), idx, cfg)?;
                     // },
                     ZCanDeviceType::ZCAN_USBCAN_8E_U => {
                         if let Some(chl_hdl) = dev_hdl.find_can(channel) {
-                            self.usbcan_8e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
+                            self.usbcan_8e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
                             dev_hdl.remove_can(channel);
                         }
                         self.usbcan_8e_api.init_can_chl(&self.libpath, &mut context, &cfg)?;
@@ -226,7 +226,7 @@ impl ZDevice for ZCanDriver {
                     },
                     ZCanDeviceType::ZCAN_USBCANFD_800U => {
                         if let Some(chl_hdl) = dev_hdl.find_can(channel) {
-                            self.usbcanfd_800u_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
+                            self.usbcanfd_800u_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
                             dev_hdl.remove_can(channel);
                         }
                         self.usbcanfd_800u_api.init_can_chl_ex(self.dev_type, self.dev_idx, channel, &cfg)?;

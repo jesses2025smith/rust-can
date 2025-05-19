@@ -14,11 +14,12 @@ crate-type = ["lib", "cdylib"]
 name = "zlgcan_rs"
 
 [dependencies]
+dlopen2 = { workspace = true }
 log = { workspace = true }
+rs-can = { workspace = true }
+rsutil = { workspace = true, features = ["log"] }
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
-dlopen2 = { workspace = true }
-rs-can = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

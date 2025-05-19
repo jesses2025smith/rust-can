@@ -267,15 +267,15 @@ impl CanFrame for CanMessage {
     fn set_can_type(&mut self, r#type: CanType) -> &mut Self {
         match r#type {
             CanType::Can => if self.length > MAX_FRAME_SIZE {
-                log::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
+                rsutil::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
                 self.length = MAX_FRAME_SIZE;
             },
             CanType::CanFd => if self.length > MAX_FD_FRAME_SIZE {
-                log::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
+                rsutil::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
                 self.length = MAX_FD_FRAME_SIZE;
             },
             CanType::CanXl => if self.length > MAX_XL_FRAME_SIZE {
-                log::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
+                rsutil::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
                 self.length = MAX_XL_FRAME_SIZE;
             },
         }

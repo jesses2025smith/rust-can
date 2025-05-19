@@ -58,17 +58,17 @@ impl ZDevice for ZCanDriver {
     fn close(&mut self) {
         if let Some(handler) = &mut self.handler {
             for (idx, hdl) in handler.can_channels() {
-                log::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                 // let hdl = *hdl;
-                self.api.reset_can_chl(hdl).unwrap_or_else(|e| log::warn!("{}", e));
+                self.api.reset_can_chl(hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
             }
             for (idx, hdl) in handler.lin_channels() {
-                log::info!("ZLGCAN - closing LIN channel: {}", *idx);
+                rsutil::info!("ZLGCAN - closing LIN channel: {}", *idx);
                 // let hdl = *hdl;
-                self.api.reset_lin_chl(hdl).unwrap_or_else(|e| log::warn!("{}", e));
+                self.api.reset_lin_chl(hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
             }
 
-            self.api.close(handler.device_context()).unwrap_or_else(|e| log::warn!("{}", e));
+            self.api.close(handler.device_context()).unwrap_or_else(|e| rsutil::warn!("{}", e));
             self.handler = None
         }
     }
@@ -100,7 +100,7 @@ impl ZDevice for ZCanDriver {
                 }
 
                 if let Some(v) = dev_hdl.find_can(channel) {
-                    self.api.reset_can_chl(&v).unwrap_or_else(|e| log::warn!("{}", e));
+                    self.api.reset_can_chl(&v).unwrap_or_else(|e| rsutil::warn!("{}", e));
                     dev_hdl.remove_can(channel);
                 }
 
@@ -191,7 +191,7 @@ impl ZDevice for ZCanDriver {
                 }
 
                 if let Some(v) = dev_hdl.find_lin(channel) {
-                    self.api.reset_lin_chl(&v).unwrap_or_else(|e| log::warn!("{}", e));
+                    self.api.reset_lin_chl(&v).unwrap_or_else(|e| rsutil::warn!("{}", e));
                     dev_hdl.remove_lin(channel);
                 }
 

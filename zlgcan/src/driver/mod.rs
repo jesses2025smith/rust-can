@@ -46,7 +46,7 @@ impl CanDevice for ZCanDriver {
 
         let count_can = self.get_can_num(channel, ZCanFrameType::CAN)?;
         if count_can > 0 {
-            log::trace!("RUST-CAN - received CAN: {}", count_can);
+            rsutil::trace!("RUST-CAN - received CAN: {}", count_can);
             let mut frames = self.receive_can(channel, count_can, timeout)?;
             results.append(&mut frames);
         }
@@ -54,7 +54,7 @@ impl CanDevice for ZCanDriver {
         if self.device_type().canfd_support() {
             let count_fd = self.get_can_num(channel, ZCanFrameType::CANFD)?;
             if count_fd > 0 {
-                log::trace!("RUST-CAN - received CANFD: {}", count_fd);
+                rsutil::trace!("RUST-CAN - received CANFD: {}", count_fd);
                 let mut frames = self.receive_canfd(channel, count_fd, timeout)?;
                 results.append(&mut frames);
             }

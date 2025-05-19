@@ -16,6 +16,7 @@ keywords = [
 log = { workspace = true }
 bitflags = { workspace = true }
 derive-getters = { workspace = true }
+rsutil = { workspace = true, features = ["log"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 

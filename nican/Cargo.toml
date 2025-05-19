@@ -14,8 +14,9 @@ name = "nican_rs"
 
 [dependencies]
 log = { workspace = true }
-winapi = { version = "0.3", features = ["errhandlingapi", "libloaderapi", "winnt", "minwindef"] }
+rsutil = { workspace = true, features = ["log"] }
 rs-can = { workspace = true }
+winapi = { version = "0.3", features = ["errhandlingapi", "libloaderapi", "winnt", "minwindef"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }

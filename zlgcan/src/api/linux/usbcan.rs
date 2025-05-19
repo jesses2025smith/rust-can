@@ -165,7 +165,7 @@ impl ZCanApi for USBCANApi<'_> {
         }
         let ret = unsafe { (self.VCI_GetReceiveNum)(dev_type as u32, dev_idx, _channel) };
         if ret > 0 {
-            log::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
+            rsutil::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
         }
         Ok(ret)
     }
@@ -177,10 +177,10 @@ impl ZCanApi for USBCANApi<'_> {
 
         let ret = unsafe { (self.VCI_Receive)(dev_type as u32, dev_idx, channel as u32, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
-            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+            rsutil::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         }
         else if ret > 0 {
-            log::trace!("ZLGCAN - receive CAN frame: {}", ret);
+            rsutil::trace!("ZLGCAN - receive CAN frame: {}", ret);
         }
 
         Ok(frames.into_iter()
@@ -199,10 +199,10 @@ impl ZCanApi for USBCANApi<'_> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.VCI_Transmit)(dev_type as u32, dev_idx, channel as u32, frames.as_ptr(), len) };
         if ret < len {
-            log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+            rsutil::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
         }
         else {
-            log::trace!("ZLGCAN - transmit CAN frame: {}", ret);
+            rsutil::trace!("ZLGCAN - transmit CAN frame: {}", ret);
         }
         Ok(ret)
     }

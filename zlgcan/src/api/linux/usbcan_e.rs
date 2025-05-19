@@ -63,7 +63,7 @@ impl USBCANEApi<'_> {
         let mut error = None;
 
         if let Some(chl_hdl) = dev_hdl.find_can(channel) {
-            self.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
+            self.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
             dev_hdl.remove_can(channel);
         }
 
@@ -94,7 +94,7 @@ impl USBCANEApi<'_> {
     ) -> Result<ZChannelContext, CanError> {
         let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), channel);
         self.init_can_chl(libpath, &mut context, cfg)?; // ZCAN_InitCAN]
-        // self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| log::warn!("{}", e));
+        // self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
         let (chl_hdl, channel) = (context.channel_handler()?, context.channel());
         self.set_channel(channel, set_value_func, cfg)?;
 
@@ -265,7 +265,7 @@ impl ZCanApi for USBCANEApi<'_> {
     fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> Result<u32, CanError> {
         let ret = unsafe { (self.ZCAN_GetReceiveNum)(context.channel_handler()?, can_type as u8) };
         if ret > 0 {
-            log::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
+            rsutil::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
         }
         Ok(ret as u32)
     }
@@ -277,10 +277,10 @@ impl ZCanApi for USBCANEApi<'_> {
         let ret = unsafe { (self.ZCAN_Receive)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
         let ret = ret as u32;
         if ret < size {
-            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+            rsutil::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         }
         else if ret > 0 {
-            log::trace!("ZLGCAN - receive CAN frame: {}", ret);
+            rsutil::trace!("ZLGCAN - receive CAN frame: {}", ret);
         }
 
         Ok(frames.into_iter()
@@ -300,10 +300,10 @@ impl ZCanApi for USBCANEApi<'_> {
         let ret = unsafe { (self.ZCAN_Transmit)(context.channel_handler()?, frames.as_ptr(), len) };
         let ret = ret as u32;
         if ret < len {
-            log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+            rsutil::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
         }
         else {
-            log::trace!("ZLGCAN - transmit CAN frame: {}", ret);
+            rsutil::trace!("ZLGCAN - transmit CAN frame: {}", ret);
         }
         Ok(ret)
     }

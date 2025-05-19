@@ -48,7 +48,7 @@ pub fn system_timestamp() -> u64 {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(v) => v.as_millis() as u64,
         Err(e) => {
-            log::warn!("RUST-CAN - SystemTimeError: {0} when conversion failed!", e);
+            rsutil::warn!("RUST-CAN - SystemTimeError: {0} when conversion failed!", e);
             0
         }
     }

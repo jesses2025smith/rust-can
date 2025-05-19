@@ -210,12 +210,12 @@ impl ZDeviceApi for WinApi<'_> {
                             .map_err(|e| CanError::OtherError(e.to_string()))?;
                         match f(_path.as_ptr(), value) {
                             1 => (),
-                            _ => log::warn!("ZLGCAN - set `{}` failed!", path),
+                            _ => rsutil::warn!("ZLGCAN - set `{}` failed!", path),
                         }
                     }
 
                     let _ = self.release_property(&p).is_err_and(|e| -> bool {
-                        log::warn!("{}", e);
+                        rsutil::warn!("{}", e);
                         true
                     });
                     Ok(())
@@ -241,7 +241,7 @@ impl ZDeviceApi for WinApi<'_> {
                     }
 
                     let _ = self.release_property(&p).is_err_and(|e| -> bool {
-                        log::warn!("{}", e);
+                        rsutil::warn!("{}", e);
                         true
                     });
 
@@ -369,7 +369,7 @@ impl ZCanApi for WinApi<'_> {
     fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> Result<u32, CanError> {
         let ret = unsafe { (self.ZCAN_GetReceiveNum)(context.channel_handler()?, can_type as u8) };
         if ret > 0 {
-            log::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
+            rsutil::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
         }
         Ok(ret)
     }
@@ -380,10 +380,10 @@ impl ZCanApi for WinApi<'_> {
 
         // let ret = unsafe { (self.ZCAN_Receive)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
         // if ret < size {
-        //     log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
+        //     rsutil::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
         // }
         // else if ret > 0 {
-        //     log::trace!("ZLGCAN - receive CAN frame: {}", ret);
+        //     rsutil::trace!("ZLGCAN - receive CAN frame: {}", ret);
         // }
         let mut count = 0;
         for i in 0..size as usize {
@@ -393,7 +393,7 @@ impl ZCanApi for WinApi<'_> {
             }
         }
         if count < size {
-            log::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, count);
+            rsutil::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, count);
         }
 
         Ok(frames.into_iter()
@@ -414,7 +414,7 @@ impl ZCanApi for WinApi<'_> {
         // method 1
         // let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
         // if ret < len {
-        //     log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
+        //     rsutil::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
         // }
         // Ok(ret)
         // method 3: just do like this because of pointer offset TODO
@@ -424,10 +424,10 @@ impl ZCanApi for WinApi<'_> {
             count += ret;
         });
         if count < len {
-            log::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, count);
+            rsutil::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, count);
         }
         else {
-            log::trace!("ZLGCAN - transmit CAN frame: {}", count);
+            rsutil::trace!("ZLGCAN - transmit CAN frame: {}", count);
         }
         Ok(count)
     }
@@ -444,7 +444,7 @@ impl ZCanApi for WinApi<'_> {
             }
         }
         if count < size {
-            log::warn!("ZLGCAN - receive CANFD frame expect: {}, actual: {}!", size, count);
+            rsutil::warn!("ZLGCAN - receive CANFD frame expect: {}, actual: {}!", size, count);
         }
 
         Ok(frames.into_iter()
@@ -473,10 +473,10 @@ impl ZCanApi for WinApi<'_> {
             count += ret;
         });
         if count < len {
-            log::warn!("ZLGCAN - transmit CAN-FD frame expect: {}, actual: {}!", len, count);
+            rsutil::warn!("ZLGCAN - transmit CAN-FD frame expect: {}, actual: {}!", len, count);
         }
         else {
-            log::trace!("ZLGCAN - transmit CAN-FD frame: {}", count);
+            rsutil::trace!("ZLGCAN - transmit CAN-FD frame: {}", count);
         }
         Ok(count)
     }
@@ -510,7 +510,7 @@ impl ZLinApi for WinApi<'_> {
     fn get_lin_num(&self, context: &ZChannelContext) -> Result<u32, CanError> {
         let ret = unsafe { (self.ZCAN_GetLINReceiveNum)(context.channel_handler()?) };
         if ret > 0 {
-            log::trace!("ZLGCAN - get receive LIN number: {}.", ret);
+            rsutil::trace!("ZLGCAN - get receive LIN number: {}.", ret);
         }
         Ok(ret)
     }
@@ -520,10 +520,10 @@ impl ZLinApi for WinApi<'_> {
 
         let ret = unsafe { (self.ZCAN_ReceiveLIN)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
-            log::warn!("ZLGCAN - receive LIN frame expect: {}, actual: {}!", size, ret);
+            rsutil::warn!("ZLGCAN - receive LIN frame expect: {}, actual: {}!", size, ret);
         }
         else if ret > 0 {
-            log::trace!("ZLGCAN - receive LIN frame: {}", ret);
+            rsutil::trace!("ZLGCAN - receive LIN frame: {}", ret);
         }
         Ok(frames)
     }
@@ -531,10 +531,10 @@ impl ZLinApi for WinApi<'_> {
         let len = frames.len() as u32;
         let ret = unsafe { (self.ZCAN_TransmitLIN)(context.channel_handler()?, frames.as_ptr(), len) };
         if ret < len {
-            log::warn!("ZLGCAN - transmit LIN frame expect: {}, actual: {}!", len, ret);
+            rsutil::warn!("ZLGCAN - transmit LIN frame expect: {}, actual: {}!", len, ret);
         }
         else {
-            log::trace!("ZLGCAN - transmit LIN frame: {}", ret);
+            rsutil::trace!("ZLGCAN - transmit LIN frame: {}", ret);
         }
         Ok(ret)
     }
@@ -623,10 +623,10 @@ impl ZCloudApi for WinApi<'_> {
 
         let ret = unsafe { (self.ZCLOUD_ReceiveGPS)(context.device_handler()?, frames.as_mut_ptr(), size, timeout) };
         if ret < size {
-            log::warn!("ZLGCAN - receive GPS frame expect: {}, actual: {}!", size, ret);
+            rsutil::warn!("ZLGCAN - receive GPS frame expect: {}, actual: {}!", size, ret);
         }
         else if ret > 0 {
-            log::trace!("ZLGCAN - receive GPS frame: {}", ret);
+            rsutil::trace!("ZLGCAN - receive GPS frame: {}", ret);
         }
         Ok(frames)
     }
