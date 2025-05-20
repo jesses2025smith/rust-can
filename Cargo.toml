@@ -37,3 +37,6 @@ rand = "0.9"
 
 [workspace.'cfg(target_os = "linux")'.dependencies]
 socketcan = { path = "socketcan" }
+
+[workspace.'cfg(target_os = "windows", target_arch = "x86")'.dependencies]
+nican = { path = "nican" }

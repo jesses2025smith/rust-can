@@ -45,7 +45,7 @@ jobs:
       - name: Publish
         run: |
           set -e
-          CRATES=(rs-can socketcan zlgcan)
+          CRATES=(rs-can nican socketcan zlgcan)
           
           for CRATE in "${CRATES[@]}"; do
             echo "Checking $CRATE version..."
@@ -62,4 +62,5 @@ jobs:
               cargo publish -p ${CRATE} --locked --verbose --token ${{ secrets.CRATES_TOKEN }}
               echo "Waiting for crates.io to sync..."
               sleep 15
+            fi
           done
