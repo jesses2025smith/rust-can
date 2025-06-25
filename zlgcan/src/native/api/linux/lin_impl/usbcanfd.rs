@@ -1,3 +1,8 @@
+use rs_can::CanError;
+use crate::native::{
+    api::{USBCANFDApi, ZChannelContext, ZLinApi},
+    lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe},
+};
 
 impl ZLinApi for USBCANFDApi<'_> {
     fn init_lin_chl(&self, context: &mut ZChannelContext, cfg: &ZLinChlCfg) -> Result<(), CanError> {

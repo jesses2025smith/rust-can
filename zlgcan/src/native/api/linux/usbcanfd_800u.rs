@@ -1,49 +1,46 @@
 use dlopen2::symbor::{Symbol, SymBorApi};
-use std::ffi::{c_char, c_uchar, c_uint, c_void, CString};
+use std::ffi::{c_uchar, c_uint, c_void};
 use rs_can::{CanError, ChannelConfig};
-
-use crate::can::{ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFrameType, ZCanFrame, ZCanFrameInner, ZCanFdFrameInner, CanMessage, ZCanChlType};
-use crate::device::{CmdPath, IProperty, ZCanDeviceType, ZChannelContext, ZDeviceContext, ZDeviceInfo};
-use crate::utils::c_str_to_string;
-
-use crate::api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi};
-use crate::can::{common::CanChlCfgContext, constant::BITRATE_CFG_FILENAME};
-use crate::CHANNEL_TYPE;
+use crate::native::{
+    api::ZDeviceApi,
+    can::{ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanChlType},
+    device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo},
+};
 
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct USBCANFD800UApi<'a> {
     /// DEVICE_HANDLE FUNC_CALL ZCAN_OpenDevice(UINT device_type, UINT device_index, UINT reserved);
-    ZCAN_OpenDevice: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_index: c_uint, reserved: c_uint) -> c_uint>,
+    pub(crate) ZCAN_OpenDevice: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_index: c_uint, reserved: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_CloseDevice(DEVICE_HANDLE device_handle);
-    ZCAN_CloseDevice: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint) -> c_uint>,
+    pub(crate) ZCAN_CloseDevice: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_GetDeviceInf(DEVICE_HANDLE device_handle, ZCAN_DEVICE_INFO* pInfo);
-    ZCAN_GetDeviceInf: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, info: *mut ZDeviceInfo) -> c_uint>,
+    pub(crate) ZCAN_GetDeviceInf: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, info: *mut ZDeviceInfo) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_IsDeviceOnLine(DEVICE_HANDLE device_handle);
     //ZCAN_IsDeviceOnLine: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint) -> c_uint>,
 
     /// CHANNEL_HANDLE FUNC_CALL ZCAN_InitCAN(DEVICE_HANDLE device_handle, UINT can_index, ZCAN_CHANNEL_INIT_CONFIG* pInitConfig);
-    ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, cfg: *const ZCanChlCfg) -> c_uint>,
+    pub(crate) ZCAN_InitCAN: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, channel: c_uint, cfg: *const ZCanChlCfg) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_StartCAN(CHANNEL_HANDLE channel_handle);
-    ZCAN_StartCAN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
+    pub(crate) ZCAN_StartCAN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ResetCAN(CHANNEL_HANDLE channel_handle);
-    ZCAN_ResetCAN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
+    pub(crate) ZCAN_ResetCAN: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ClearBuffer(CHANNEL_HANDLE channel_handle);
-    ZCAN_ClearBuffer: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
+    pub(crate) ZCAN_ClearBuffer: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ReadChannelErrInfo(CHANNEL_HANDLE channel_handle, ZCAN_CHANNEL_ERR_INFO* pErrInfo);
-    ZCAN_ReadChannelErrInfo: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, err: *mut ZCanChlError) -> c_uint>,
+    pub(crate) ZCAN_ReadChannelErrInfo: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, err: *mut ZCanChlError) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ReadChannelStatus(CHANNEL_HANDLE channel_handle, ZCAN_CHANNEL_STATUS* pCANStatus);
-    ZCAN_ReadChannelStatus: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, status: *mut ZCanChlStatus) -> c_uint>,
+    pub(crate) ZCAN_ReadChannelStatus: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, status: *mut ZCanChlStatus) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_GetReceiveNum(CHANNEL_HANDLE channel_handle, BYTE type);    //type:TYPE_CAN, TYPE_CANFD, TYPE_ALL_DATA
-    ZCAN_GetReceiveNum: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, can_type: c_uchar) -> c_uint>,
+    pub(crate) ZCAN_GetReceiveNum: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, can_type: c_uchar) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_Transmit(CHANNEL_HANDLE channel_handle, ZCAN_Transmit_Data* pTransmit, UINT len);
-    ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_Receive(CHANNEL_HANDLE channel_handle, ZCAN_Receive_Data* pReceive, UINT len, int wait_time DEF(-1));
-    ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_TransmitFD(CHANNEL_HANDLE channel_handle, ZCAN_TransmitFD_Data* pTransmit, UINT len);
-    ZCAN_TransmitFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) ZCAN_TransmitFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ReceiveFD(CHANNEL_HANDLE channel_handle, ZCAN_ReceiveFD_Data* pReceive, UINT len, int wait_time DEF(-1));
-    ZCAN_ReceiveFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) ZCAN_ReceiveFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
 
     /// UINT FUNC_CALL ZCAN_TransmitData(DEVICE_HANDLE device_handle, ZCANDataObj* pTransmit, UINT len);
     // ZCAN_TransmitData: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, data: *const ZCANDataObj, len: c_uint) -> c_uint>,
@@ -55,13 +52,13 @@ pub(crate) struct USBCANFD800UApi<'a> {
     /// const void* FUNC_CALL ZCAN_GetValue(DEVICE_HANDLE device_handle, const char* path);
     // ZCAN_GetValue: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, path: *const c_char) -> *const c_void>,
     /// IProperty* FUNC_CALL GetIProperty(DEVICE_HANDLE device_handle);
-    GetIProperty: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint) -> *const IProperty>,
+    pub(crate) GetIProperty: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint) -> *const IProperty>,
     /// UINT FUNC_CALL ReleaseIProperty(IProperty * pIProperty);
-    ReleaseIProperty: Symbol<'a, unsafe extern "C" fn(p: *const IProperty) -> c_uint>,
+    pub(crate) ReleaseIProperty: Symbol<'a, unsafe extern "C" fn(p: *const IProperty) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_GetReference(UINT DeviceType, UINT nDevIndex, UINT nChnlIndex, UINT nRefType, void* pData);
-    ZCAN_GetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, chl: c_uint, cmd: c_uint, value: *mut c_void) -> c_uint>,
+    pub(crate) ZCAN_GetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, chl: c_uint, cmd: c_uint, value: *mut c_void) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_SetReference(UINT DeviceType, UINT nDevIndex, UINT nChnlIndex, UINT nRefType, void* pData);
-    ZCAN_SetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, chl: c_uint, cmd: c_uint, value: *const c_void) -> c_uint>,
+    pub(crate) ZCAN_SetReference: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, chl: c_uint, cmd: c_uint, value: *const c_void) -> c_uint>,
 }
 
 #[allow(dead_code)]
@@ -175,268 +172,3 @@ impl USBCANFD800UApi<'_> {
         }
     }
 }
-
-impl ZDeviceApi for USBCANFD800UApi<'_> {
-    fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
-        match unsafe { (self.ZCAN_OpenDevice)(context.device_type() as u32, context.device_index(), 0) } {
-            Self::INVALID_DEVICE_HANDLE => Err(
-                CanError::InitializeError(format!("`ZCAN_OpenDevice` ret: {}", Self::INVALID_DEVICE_HANDLE))
-            ),
-            v => {
-                context.set_device_handler(v);
-                Ok(())
-            },
-        }
-    }
-
-    fn close(&self, context: &ZDeviceContext) -> Result<(), CanError> {
-        match unsafe { (self.ZCAN_CloseDevice)(context.device_handler()?) } {
-            Self::STATUS_OK => Ok(()),
-            code => Err(
-                CanError::OperationError(format!("`ZCAN_CloseDevice` ret: {}", code))
-            ),
-        }
-    }
-
-    fn read_device_info(&self, context: &ZDeviceContext) -> Result<ZDeviceInfo, CanError> {
-        let mut info = ZDeviceInfo::default();
-        match unsafe { (self.ZCAN_GetDeviceInf)(context.device_handler()?, &mut info) } {
-            Self::STATUS_OK => Ok(info),
-            code => Err(
-                CanError::OperationError(format!("`ZCAN_GetDeviceInf` ret: {}", code))
-            ),
-        }
-    }
-
-    fn get_property(&self, context: &ZChannelContext) -> Result<IProperty, CanError> {
-        let ret = unsafe { (self.GetIProperty)(context.channel_handler()?) };
-        if ret.is_null() {
-            Err(CanError::OperationError(format!("`GetIProperty` ret: {}", 0)))
-        }
-        else {
-            unsafe { Ok(*ret) }
-        }
-    }
-
-    fn release_property(&self, p: &IProperty) -> Result<(), CanError> {
-        match unsafe { (self.ReleaseIProperty)(p) } {
-            Self::STATUS_OK => Ok(()),
-            code => Err(
-                CanError::OperationError(format!("`ReleaseIProperty` ret: {}", code))
-            ),
-        }
-    }
-
-    fn set_values(&self, context: &ZChannelContext, values: Vec<(CmdPath, *const c_char)>) -> Result<(), CanError> {
-        unsafe {
-            let p = self.get_property(context)?;
-            match p.SetValue {
-                Some(f) => {
-                    for (cmd, value) in values {
-                        let path = cmd.get_path();
-                        // let _path = format!("{}/{}", path, channel);
-                        let _path = CString::new(path)
-                            .map_err(|e| CanError::OtherError(e.to_string()))?;
-                        match f(_path.as_ptr(), value) {
-                            1 => (),
-                            _ => rsutil::warn!("ZLGCAN - set `{}` failed!", path),
-                        }
-                    }
-
-                    let _ = self.release_property(&p).is_err_and(|e| -> bool {
-                        rsutil::warn!("{}", e);
-                        true
-                    });
-                    Ok(())
-                },
-                None => Err(CanError::NotSupportedError),
-            }
-        }
-    }
-
-    fn get_values(&self, context: &ZChannelContext, paths: Vec<CmdPath>) -> Result<Vec<String>, CanError> {
-        unsafe {
-            let p = self.get_property(context)?;
-            match p.GetValue {
-                Some(f) => {
-                    let mut result = Vec::new();
-                    for cmd in paths {
-                        let path = cmd.get_path();
-                        let _path = CString::new(format!("{}/{}", path, context.channel()))
-                            .map_err(|e| CanError::OtherError(e.to_string()))?;
-                        let ret = f(_path.as_ptr());
-                        let v = c_str_to_string(ret)?;
-                        result.push(v);
-                    }
-
-                    let _ = self.release_property(&p).is_err_and(|e| -> bool {
-                        rsutil::warn!("{}", e);
-                        true
-                    });
-
-                    Ok(result)
-                },
-                None => Err(CanError::NotSupportedError),
-            }
-        }
-    }
-}
-
-impl ZCanApi for USBCANFD800UApi<'_> {
-    fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
-        unsafe {
-            // init can channel
-            let (dev_type, dev_hdl, channel) = (context.device_type(), context.device_handler()?, context.channel());
-            let cfg_ctx = CanChlCfgContext::new(libpath)?;
-            let bc_ctx = cfg_ctx.0.get(&(dev_type as u32).to_string())
-                .ok_or(CanError::InitializeError(
-                    format!("device: {} is not configured in {}", dev_type, BITRATE_CFG_FILENAME)
-                ))?;
-            let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
-                .unwrap_or(ZCanChlType::CAN);
-            let cfg = ZCanChlCfg::new(
-                dev_type,
-                can_type,
-                bc_ctx,
-                cfg
-            )?;
-            let handler = match (self.ZCAN_InitCAN)(dev_hdl, channel as u32, &cfg) {
-                Self::INVALID_CHANNEL_HANDLE => Err(
-                    CanError::InitializeError(format!("`ZCAN_InitCAN` ret: {}", Self::INVALID_CHANNEL_HANDLE))
-                ),
-                handler => {
-                    match (self.ZCAN_StartCAN)(handler) {
-                        Self::STATUS_OK => Ok(handler),
-                        code => Err(
-                            CanError::InitializeError(format!("`ZCAN_InitCAN` ret: {}", code))
-                        ),
-                    }
-                }
-            }?;
-
-            context.set_channel_handler(Some(handler));
-            Ok(())
-        }
-    }
-
-    fn reset_can_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
-        match unsafe { (self.ZCAN_ResetCAN)(context.channel_handler()?) } {
-            Self::STATUS_OK => Ok(()),
-            code => Err(
-                CanError::OperationError(format!("`ZCAN_ResetCAN` ret: {}", code))
-            ),
-        }
-    }
-
-    fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError> {
-        let mut status: ZCanChlStatus = Default::default();
-        match unsafe { (self.ZCAN_ReadChannelStatus)(context.channel_handler()?, &mut status) } {
-            Self::STATUS_OK => Ok(status),
-            code => Err(
-                CanError::OperationError(format!("`ZCAN_ReadChannelStatus` ret: {}", code))
-            ),
-        }
-    }
-
-    fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError> {
-        let mut info: ZCanChlError = ZCanChlError { v1: Default::default() };
-        match unsafe { (self.ZCAN_ReadChannelErrInfo)(context.channel_handler()?, &mut info) } {
-            Self::STATUS_OK => Ok(info),
-            code => Err(
-                CanError::OperationError(format!("`ZCAN_ReadChannelErrInfo` ret: {}", code))
-            ),
-        }
-    }
-
-    fn clear_can_buffer(&self, context: &ZChannelContext) -> Result<(), CanError> {
-        match unsafe { (self.ZCAN_ClearBuffer)(context.channel_handler()?) } {
-            Self::STATUS_OK => Ok(()),
-            code => Err(
-                CanError::OperationError(format!("`ZCAN_ClearBuffer` ret: {}", code))
-            ),
-        }
-    }
-
-    fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> Result<u32, CanError> {
-        let ret = unsafe { (self.ZCAN_GetReceiveNum)(context.channel_handler()?, can_type as u8) };
-        if ret > 0 {
-            rsutil::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
-        }
-        Ok(ret)
-    }
-
-    fn receive_can(&self, context: &ZChannelContext, size: u32, timeout: u32) -> Result<Vec<CanMessage>, CanError> {
-        let mut frames = Vec::new();
-        frames.resize(size as usize, ZCanFrame { can: ZCanFrameInner { libother: Default::default() } });
-
-        let ret = unsafe { (self.ZCAN_Receive)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
-        if ret < size {
-            rsutil::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
-        }
-        else if ret > 0 {
-            rsutil::trace!("ZLGCAN - receive CAN frame: {}", ret);
-        }
-
-        Ok(frames.into_iter()
-            .map(|mut frame| unsafe {
-                frame.can.libother.set_channel(context.channel());
-                frame.can.libother.into()
-            })
-            .collect::<Vec<_>>())
-    }
-
-    fn transmit_can(&self, context: &ZChannelContext, frames: Vec<CanMessage>) -> Result<u32, CanError> {
-        let frames = frames.into_iter()
-            .map(|frame| ZCanFrame { can: ZCanFrameInner { libother: frame.into() } })
-            .collect::<Vec<_>>();
-
-        let len = frames.len() as u32;
-        let ret = unsafe { (self.ZCAN_Transmit)(context.channel_handler()?, frames.as_ptr(), len) };
-        if ret < len {
-            rsutil::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
-        }
-        else {
-            rsutil::trace!("ZLGCAN - transmit CAN frame: {}", ret);
-        }
-        Ok(ret)
-    }
-
-    fn receive_canfd(&self, context: &ZChannelContext, size: u32, timeout: u32) -> Result<Vec<CanMessage>, CanError> {
-        let mut frames = Vec::new();
-        frames.resize(size as usize, ZCanFrame { canfd: ZCanFdFrameInner { libother: Default::default() } });
-
-        let ret = unsafe { (self.ZCAN_ReceiveFD)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
-        if ret < size {
-            rsutil::warn!("ZLGCAN - receive CAN-FD frame expect: {}, actual: {}!", size, ret);
-        }
-        else if ret > 0 {
-            rsutil::trace!("ZLGCAN - receive CAN-FD frame: {}", ret);
-        }
-
-        Ok(frames.into_iter()
-            .map(|mut frame| unsafe {
-                frame.canfd.libother.set_channel(context.channel());
-                frame.canfd.libother.into()
-            })
-            .collect::<Vec<_>>())
-    }
-
-    fn transmit_canfd(&self, context: &ZChannelContext, frames: Vec<CanMessage>) -> Result<u32, CanError> {
-        let frames = frames.into_iter()
-            .map(|frame| ZCanFrame { canfd: ZCanFdFrameInner { libother: frame.into() } })
-            .collect::<Vec<_>>();
-
-        let len = frames.len() as u32;
-        let ret = unsafe { (self.ZCAN_TransmitFD)(context.channel_handler()?, frames.as_ptr(), len) };
-        if ret < len {
-            rsutil::warn!("ZLGCAN - transmit CANFD frame expect: {}, actual: {}!", len, ret);
-        }
-        else {
-            rsutil::trace!("ZLGCAN - transmit CAN-FD frame: {}", ret);
-        }
-        Ok(ret)
-    }
-}
-
-impl ZLinApi for USBCANFD800UApi<'_> {}
-impl ZCloudApi for USBCANFD800UApi<'_> {}

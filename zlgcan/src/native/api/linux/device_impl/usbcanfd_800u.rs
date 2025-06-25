@@ -1,3 +1,10 @@
+use std::ffi::{c_char, CString};
+use rs_can::CanError;
+use crate::native::{
+    api::{USBCANFD800UApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
+    device::{CmdPath, IProperty, ZDeviceInfo},
+    util::c_str_to_string,
+};
 
 impl ZDeviceApi for USBCANFD800UApi<'_> {
     fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {

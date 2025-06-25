@@ -1,3 +1,8 @@
+use rs_can::CanError;
+use crate::native::{
+    api::{USBCANEApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
+    device::{IProperty, ZDeviceInfo},
+};
 
 impl ZDeviceApi for USBCANEApi<'_> {
     fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {

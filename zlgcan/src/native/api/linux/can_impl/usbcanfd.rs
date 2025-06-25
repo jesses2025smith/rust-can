@@ -1,3 +1,13 @@
+use std::ffi::{c_void, CString};
+use rs_can::{CanError, ChannelConfig};
+use crate::{
+    constants,
+    native::{
+        api::{USBCANFDApi, ZCanApi, ZChannelContext, ZDeviceApi},
+        can::{constants::BITRATE_CFG_FILENAME,common::CanChlCfgContext, get_fd_cfg, CanMessage, Reference, ZCanChlError, ZCanChlMode, ZCanChlStatus, ZCanChlType, ZCanFdFrameInner, ZCanFrame, ZCanFrameInner, ZCanFrameType},
+    },
+    device::CmdPath,
+};
 
 impl ZCanApi for USBCANFDApi<'_> {
     fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
@@ -18,9 +28,9 @@ impl ZCanApi for USBCANFDApi<'_> {
             }
 
             let cfg = get_fd_cfg(
-                cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+                cfg.get_other::<ZCanChlType>(constants::CHANNEL_TYPE)?
                     .unwrap_or(ZCanChlType::CANFD_ISO),
-                cfg.get_other::<ZCanChlMode>(CHANNEL_MODE)?
+                cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
                     .unwrap_or(ZCanChlMode::Normal),
                 cfg.bitrate(),
                 cfg.dbitrate(),
@@ -51,7 +61,7 @@ impl ZCanApi for USBCANFDApi<'_> {
 
     fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
-        let mut status: ZCanChlStatus = Default::default();
+        let mut status = ZCanChlStatus::default();
         match unsafe { (self.VCI_ReadCANStatus)(dev_type as u32, dev_idx, channel as u32, &mut status) } {
             Self::STATUS_OK => Ok(status),
             code => Err(CanError::OperationError(format!("`VCI_ReadCANStatus` ret: {}", code))),
@@ -60,7 +70,7 @@ impl ZCanApi for USBCANFDApi<'_> {
 
     fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
-        let mut info: ZCanChlError = ZCanChlError { v2: Default::default() };
+        let mut info = ZCanChlError { v2: Default::default() };
         match unsafe { (self.VCI_ReadErrInfo)(dev_type as u32, dev_idx, channel as u32, &mut info) } {
             Self::STATUS_OK => Ok(info),
             code => Err(CanError::OperationError(format!("`VCI_ReadErrInfo` ret: {}", code))),

@@ -1,3 +1,14 @@
+use rs_can::{CanError, ChannelConfig};
+use crate::native::{
+    api::{USBCANApi, ZCanApi, ZChannelContext},
+    can::{
+        CanMessage,
+        constants::BITRATE_CFG_FILENAME,
+        common::{CanChlCfgContext, ZCanChlCfgInner},
+        ZCanFrame, ZCanFrameInner, ZCanChlError, ZCanChlStatus, ZCanFrameType
+    }
+};
+
 impl ZCanApi for USBCANApi<'_> {
     fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
         let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());

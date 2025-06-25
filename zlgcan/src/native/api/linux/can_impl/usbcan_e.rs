@@ -1,3 +1,10 @@
+use rs_can::{CanError, ChannelConfig};
+use crate::{
+    constants,
+    native::api::{USBCANEApi, ZCanApi, ZChannelContext},
+    can::{common::CanChlCfgContext, constants::BITRATE_CFG_FILENAME, CanMessage, ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFrame, ZCanFrameInner, ZCanFrameType},
+    device::ZCanDeviceType,
+};
 
 impl ZCanApi for USBCANEApi<'_> {
     fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
@@ -19,7 +26,7 @@ impl ZCanApi for USBCANEApi<'_> {
                     }
                 },
                 ZCanDeviceType::ZCAN_USBCAN_8E_U => {
-                    let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+                    let can_type = cfg.get_other::<ZCanChlType>(constants::CHANNEL_TYPE)?
                         .unwrap_or(ZCanChlType::CAN);
                     let cfg = ZCanChlCfg::new(
                         dev_type,
@@ -53,7 +60,7 @@ impl ZCanApi for USBCANEApi<'_> {
     }
 
     fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError> {
-        let mut status: ZCanChlStatus = Default::default();
+        let mut status = ZCanChlStatus::default();
         match unsafe { (self.ZCAN_ReadChannelStatus)(context.channel_handler()?, &mut status) } as u32 {
             Self::STATUS_OK => Ok(status),
             code => Err(CanError::OperationError(format!("`ZCAN_ReadChannelStatus` ret: {}", code))),
@@ -61,7 +68,7 @@ impl ZCanApi for USBCANEApi<'_> {
     }
 
     fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError> {
-        let mut info: ZCanChlError = ZCanChlError { v1: Default::default() };
+        let mut info = ZCanChlError { v1: Default::default() };
         match unsafe { (self.ZCAN_ReadChannelErrInfo)(context.channel_handler()?, &mut info) } as u32  {
             Self::STATUS_OK => Ok(info),
             code => Err(CanError::OperationError(format!("`ZCAN_ReadChannelErrInfo` ret: {}", code))),

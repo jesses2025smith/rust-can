@@ -1,3 +1,9 @@
+use std::ffi::c_void;
+use rs_can::CanError;
+use crate::native::{
+    api::{USBCANFDApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
+    device::{CmdPath, ZDeviceInfo},
+};
 
 impl ZDeviceApi for USBCANFDApi<'_> {
     fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {

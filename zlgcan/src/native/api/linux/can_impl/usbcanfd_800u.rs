@@ -1,3 +1,11 @@
+use rs_can::{CanError, ChannelConfig};
+use crate::{
+    constants,
+    native::{
+        api::{USBCANFD800UApi, ZCanApi, ZChannelContext},
+        can::{constants::BITRATE_CFG_FILENAME, common::CanChlCfgContext, CanMessage, ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFdFrameInner, ZCanFrame, ZCanFrameInner, ZCanFrameType}
+    }
+};
 
 impl ZCanApi for USBCANFD800UApi<'_> {
     fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
@@ -9,7 +17,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
                 .ok_or(CanError::InitializeError(
                     format!("device: {} is not configured in {}", dev_type, BITRATE_CFG_FILENAME)
                 ))?;
-            let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+            let can_type = cfg.get_other::<ZCanChlType>(constants::CHANNEL_TYPE)?
                 .unwrap_or(ZCanChlType::CAN);
             let cfg = ZCanChlCfg::new(
                 dev_type,

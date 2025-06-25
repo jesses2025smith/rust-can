@@ -1,13 +1,16 @@
 use std::{path::PathBuf, sync::Arc};
 use dlopen2::symbor::Container;
 use rs_can::{CanError, ChannelConfig};
-
-use crate::can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType};
-use crate::device::{DeriveInfo, Handler, ZCanDeviceType, ZChannelContext, ZDeviceContext, ZDeviceInfo};
-use crate::lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe};
-use crate::api::{USBCANApi, USBCANEApi, USBCANFDApi, USBCANFD800UApi, ZCanApi, ZDeviceApi, ZLinApi};
-use crate::driver::{lin_support, ZDevice};
-use crate::utils;
+use crate::{
+    native::{
+        api::{USBCANApi, USBCANEApi, USBCANFDApi, USBCANFD800UApi, ZCanApi, ZDeviceApi, ZLinApi, ZDeviceContext, ZChannelContext},
+        can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType},
+        device::{DeriveInfo, ZCanDeviceType, ZDeviceInfo},
+        lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe},
+        util::get_libpath,
+    },
+    driver::{lin_support, Handler, ZDevice, ZCan, ZCloud, ZLin},
+};
 
 #[derive(Clone)]
 pub struct ZDriver {
@@ -26,19 +29,18 @@ pub struct ZDriver {
 impl ZDevice for ZDriver {
     fn new(libpath: String, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
         let mut path = PathBuf::from(&libpath);
-        path.push(LIB_PATH);
         Ok(Self {
             libpath,
             handler: Default::default(),
-            usbcan_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcan.so")) }
+            usbcan_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcan.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcan_4e_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcan-4e.so")) }
+            usbcan_4e_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcan-4e.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcan_8e_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcan-8e.so")) }
+            usbcan_8e_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcan-8e.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcanfd_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcanfd.so")) }
+            usbcanfd_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcanfd.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcanfd_800u_api: Arc::new(unsafe { Container::load(&utils::get_libpath(path.clone(), "libusbcanfd800u.so")) }
+            usbcanfd_800u_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcanfd800u.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
             dev_type,
             dev_idx,
@@ -173,6 +175,13 @@ impl ZDevice for ZDriver {
         self.derive.is_some()
     }
 
+    #[inline]
+    fn timestamp(&self, channel: u8) -> Result<u64, CanError> {
+        self.can_handler(channel, |context| Ok(context.timestamp()))
+    }
+}
+
+impl ZCan for ZDriver {
     fn init_can_chl(&mut self, channel: u8, cfg: &ChannelConfig) -> Result<(), CanError> {
         match &mut self.handler {
             Some(dev_hdl) => {
@@ -512,7 +521,9 @@ impl ZDevice for ZDriver {
             _ => Err(CanError::NotSupportedError),
         }
     }
+}
 
+impl ZLin for ZDriver {
     fn init_lin_chl(&mut self, channel: u8, cfg: ZLinChlCfg) -> Result<(), CanError> {
         lin_support(self.dev_type)?;
         match &mut self.handler {
@@ -664,18 +675,6 @@ impl ZDevice for ZDriver {
             _ => Err(CanError::NotSupportedError),
         }
     }
-
-    #[inline]
-    fn timestamp(&self, channel: u8) -> Result<u64, CanError> {
-        self.can_handler(channel, |context| Ok(context.timestamp()))
-    }
-
-    fn device_handler<C, T>(&self, callback: C) -> Result<T, CanError>
-        where
-            C: FnOnce(&Handler) -> Result<T, CanError> {
-        match &self.handler {
-            Some(v) => callback(v),
-            None => Err(CanError::device_not_opened()),
-        }
-    }
 }
+
+impl ZCloud for ZDriver {}
