@@ -6,7 +6,7 @@ use crate::{
     constants,
     driver::Handler,
     native::{
-        api::{ZChannelContext, ZDeviceContext, ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi},
+        api::{ZChannelContext, ZDeviceContext, ZCanApi, ZDeviceApi},
         can::{ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanChlCfg, ZCanChlMode},
         constants::{channel_bitrate, channel_work_mode},
         device::{IProperty, SetValueFunc, ZDeviceInfo},
@@ -128,8 +128,8 @@ impl USBCANEApi<'_> {
             let cmd_path = CString::new(channel_work_mode(channel))
                 .map_err(|e| CanError::OtherError(e.to_string()))?;
             let mode = CString::new(
-                cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
-                    .unwrap_or(ZCanChlMode::Normal) as u8
+                (cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
+                    .unwrap_or(ZCanChlMode::Normal) as u8)
                     .to_string()
             )
                 .map_err(|e| CanError::OtherError(e.to_string()))?;
@@ -159,7 +159,6 @@ mod tests {
         constants::LOAD_LIB_FAILED,
         device::{ZCanDeviceType, ZDeviceInfo}
     };
-    // use crate::api::ZDeviceApi;
     use super::USBCANEApi;
 
     #[test]

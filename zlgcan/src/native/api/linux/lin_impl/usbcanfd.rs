@@ -6,7 +6,7 @@ use crate::native::{
 
 impl ZLinApi for USBCANFDApi<'_> {
     fn init_lin_chl(&self, context: &mut ZChannelContext, cfg: &ZLinChlCfg) -> Result<(), CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         unsafe {
             match (self.VCI_InitLIN)(dev_type as u32, dev_idx, channel as u32, cfg) {
                 Self::STATUS_OK => match (self.VCI_StartLIN)(dev_type as u32, dev_idx, channel as u32) {
@@ -18,21 +18,21 @@ impl ZLinApi for USBCANFDApi<'_> {
         }
     }
     fn reset_lin_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         match unsafe { (self.VCI_ResetLIN)(dev_type as u32, dev_idx, channel as u32) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!("`VCI_ResetLIN` ret: {}", code))),
         }
     }
     fn clear_lin_buffer(&self, context: &ZChannelContext) -> Result<(), CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         match unsafe { (self.VCI_ClearLINBuffer)(dev_type as u32, dev_idx, channel as u32) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!("`VCI_ClearLINBuffer` ret: {}", code))),
         }
     }
     fn get_lin_num(&self, context: &ZChannelContext) -> Result<u32, CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         let ret = unsafe { (self.VCI_GetLINReceiveNum)(dev_type as u32, dev_idx, channel as u32) };
         if ret > 0 {
             rsutil::trace!("ZLGCAN - get receive LIN number: {}.", ret);
@@ -40,7 +40,7 @@ impl ZLinApi for USBCANFDApi<'_> {
         Ok(ret)
     }
     fn receive_lin(&self, context: &ZChannelContext, size: u32, timeout: u32) -> Result<Vec<ZLinFrame>, CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         let mut frames = Vec::new();
         frames.resize_with(size as usize, ZLinFrame::default_data);
 
@@ -54,7 +54,7 @@ impl ZLinApi for USBCANFDApi<'_> {
         Ok(frames)
     }
     fn transmit_lin(&self, context: &ZChannelContext, frames: Vec<ZLinFrame>) -> Result<u32, CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         let len = frames.len() as u32;
         let ret = unsafe { (self.VCI_TransmitLIN)(dev_type as u32, dev_idx, channel as u32, frames.as_ptr(), len) };
         if ret < len {
@@ -66,7 +66,7 @@ impl ZLinApi for USBCANFDApi<'_> {
         Ok(ret)
     }
     fn set_lin_subscribe(&self, context: &ZChannelContext, cfg: Vec<ZLinSubscribe>) -> Result<(), CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         let len = cfg.len() as u32;
         match unsafe { (self.VCI_SetLINSubscribe)(dev_type as u32, dev_idx, channel as u32, cfg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
@@ -74,7 +74,7 @@ impl ZLinApi for USBCANFDApi<'_> {
         }
     }
     fn set_lin_publish(&self, context: &ZChannelContext, cfg: Vec<ZLinPublish>) -> Result<(), CanError> {
-        let (dev_type, dev_idx, channel) = (context.device_type(), context.device_index(), context.channel());
+        let (dev_type, dev_idx, channel) = (context.device.dev_type, context.device.dev_idx, context.channel);
         let len = cfg.len() as u32;
         match unsafe { (self.VCI_SetLINPublish)(dev_type as u32, dev_idx, channel as u32, cfg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),

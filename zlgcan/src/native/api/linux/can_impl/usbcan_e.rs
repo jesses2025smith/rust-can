@@ -8,9 +8,9 @@ use crate::{
 
 impl ZCanApi for USBCANEApi<'_> {
     fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
-        let dev_type = context.device_type();
+        let dev_type = context.device.dev_type;
         let dev_hdl = context.device_handler()?;
-        let channel = context.channel() as u32;
+        let channel = context.channel as u32;
         let cfg_ctx = CanChlCfgContext::new(libpath)?;
         let bc_ctx = cfg_ctx.0.get(&(dev_type as u32).to_string())
             .ok_or(CanError::InitializeError(
@@ -47,7 +47,7 @@ impl ZCanApi for USBCANEApi<'_> {
                 _ => Err(CanError::NotSupportedError),
             }?;
 
-            context.set_channel_handler(Some(handler));
+            context.chl_hdl = Some(handler);
             Ok(())
         }
     }
@@ -105,7 +105,7 @@ impl ZCanApi for USBCANEApi<'_> {
 
         Ok(frames.into_iter()
             .map(|mut frame| unsafe {
-                frame.can.libother.set_channel(context.channel());
+                frame.can.libother.set_channel(context.channel);
                 frame.can.libother.into()
             })
             .collect::<Vec<_>>())
@@ -113,7 +113,7 @@ impl ZCanApi for USBCANEApi<'_> {
 
     fn transmit_can(&self, context: &ZChannelContext, frames: Vec<CanMessage>) -> Result<u32, CanError> {
         let frames = frames.into_iter()
-            .map(|mut frame| ZCanFrame { can: ZCanFrameInner { libother: frame.into() } })
+            .map(|frame| ZCanFrame { can: ZCanFrameInner { libother: frame.into() } })
             .collect::<Vec<_>>();
 
         let len = frames.len() as u32;

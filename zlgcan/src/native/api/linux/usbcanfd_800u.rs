@@ -1,10 +1,12 @@
 use dlopen2::symbor::{Symbol, SymBorApi};
 use std::ffi::{c_uchar, c_uint, c_void};
 use rs_can::{CanError, ChannelConfig};
-use crate::native::{
-    api::ZDeviceApi,
-    can::{ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanChlType},
-    device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo},
+use crate::{
+    constants,
+    native::{
+        can::{ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanChlType},
+        device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo},
+    }
 };
 
 #[allow(non_snake_case)]
@@ -128,7 +130,7 @@ impl USBCANFD800UApi<'_> {
                 cmd_path.get_reference(), &state as *const c_uint as *const c_void)?;
         }
         // set channel protocol
-        let can_type = cfg.get_other::<ZCanChlType>(CHANNEL_TYPE)?
+        let can_type = cfg.get_other::<ZCanChlType>(constants::CHANNEL_TYPE)?
             .unwrap_or(ZCanChlType::CANFD_ISO) as u32;
         let cmd_path = CmdPath::new_reference(USBCANFD800UApi::REF_CONTROLLER_TYPE);
         self.self_set_reference(

@@ -17,6 +17,7 @@ pub(crate) struct ZDeviceContext {
     pub(crate) dev_type: ZCanDeviceType,
     pub(crate) dev_idx: u32,
     pub(crate) dev_hdl: Option<u32>,
+    #[allow(unused)]
     pub(crate) is_derive: bool,
 }
 

@@ -1,6 +1,6 @@
 use std::ffi::{c_uchar, c_uint, c_ushort};
 use rs_can::{can_utils, CanDirect, CanType, DEFAULT_PADDING, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
-use crate::native::can::{CanMessage, common, constants::{TIME_FLAG_VALID, CANERR_FRAME_LENGTH}};
+use crate::native::can::{CanMessage, constants::{TIME_FLAG_VALID, CANERR_FRAME_LENGTH}};
 
 /// only used usbcan on linux
 #[repr(C)]
@@ -187,14 +187,14 @@ impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
 pub(crate) union ZCanFrameInner {
     pub(crate) libusbcan: ZCanFrameVCI,   // libusbcan.so
     pub(crate) libusbcanfd: ZCanMsg20<MAX_FRAME_SIZE>, // libusbcanfd.so
-    pub(crate) libother: common::ZCanMsg20<MAX_FRAME_SIZE>,
+    pub(crate) libother: super::common::ZCanMsg20<MAX_FRAME_SIZE>,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub(crate) union ZCanFdFrameInner {
     pub(crate) libusbcanfd: ZCanMsg20<MAX_FD_FRAME_SIZE>,  // libusbcanfd.so
-    pub(crate) libother: common::ZCanMsg20<MAX_FD_FRAME_SIZE>,
+    pub(crate) libother: super::common::ZCanMsg20<MAX_FD_FRAME_SIZE>,
 }
 
 /// only used usbcanfd on linux

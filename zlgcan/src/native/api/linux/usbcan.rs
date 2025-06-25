@@ -2,7 +2,6 @@ use std::ffi::c_void;
 use dlopen2::symbor::{Symbol, SymBorApi};
 
 use crate::native::{
-    api::{ZCanApi, ZCloudApi, ZDeviceApi, ZLinApi},
     can::{common::ZCanChlCfgInner, ZCanFrame, ZCanChlError, ZCanChlStatus},
     device::ZDeviceInfo,
 };
@@ -51,12 +50,16 @@ impl USBCANApi<'_> {
 mod tests {
     use dlopen2::symbor::{Library, SymBorApi};
     use rs_can::{CanError, CanFrame, CanId, ChannelConfig};
-    use crate::can::{ZCanChlMode, ZCanChlType, ZCanFrame, CanMessage, ZCanFrameInner};
-    use crate::constants::LOAD_LIB_FAILED;
-    use crate::device::{ZCanDeviceType, ZChannelContext, ZDeviceContext};
+    use crate::{
+        api::{ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
+        can::{CanMessage, ZCanChlType, ZCanChlMode},
+        constants,
+        native::{
+            device::ZCanDeviceType,
+            constants::LOAD_LIB_FAILED
+        },
+    };
     use super::USBCANApi;
-    use crate::api::{ZCanApi, ZDeviceApi};
-    use crate::{CHANNEL_MODE, CHANNEL_TYPE};
 
     #[test]
     fn test_init_channel() -> anyhow::Result<()> {
@@ -70,8 +73,8 @@ mod tests {
         let api = unsafe { USBCANApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");
 
         let mut cfg = ChannelConfig::new(500_000);
-        cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN))
-            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
+        cfg.add_other(constants::CHANNEL_TYPE, Box::new(ZCanChlType::CAN))
+            .add_other(constants::CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
 
         let mut context = ZDeviceContext::new(dev_type, dev_idx, false);
         api.open(&mut context)?;
@@ -105,7 +108,7 @@ mod tests {
 
         api.reset_can_chl(&context)?;
 
-        api.close(context.device_context())?;
+        api.close(&context.device)?;
 
         Ok(())
     }

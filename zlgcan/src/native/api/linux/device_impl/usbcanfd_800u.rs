@@ -8,12 +8,12 @@ use crate::native::{
 
 impl ZDeviceApi for USBCANFD800UApi<'_> {
     fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
-        match unsafe { (self.ZCAN_OpenDevice)(context.device_type() as u32, context.device_index(), 0) } {
+        match unsafe { (self.ZCAN_OpenDevice)(context.dev_type as u32, context.dev_idx, 0) } {
             Self::INVALID_DEVICE_HANDLE => Err(
                 CanError::InitializeError(format!("`ZCAN_OpenDevice` ret: {}", Self::INVALID_DEVICE_HANDLE))
             ),
             v => {
-                context.set_device_handler(v);
+                context.dev_hdl = Some(v);
                 Ok(())
             },
         }
@@ -92,7 +92,7 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
                     let mut result = Vec::new();
                     for cmd in paths {
                         let path = cmd.get_path();
-                        let _path = CString::new(format!("{}/{}", path, context.channel()))
+                        let _path = CString::new(format!("{}/{}", path, context.channel))
                             .map_err(|e| CanError::OtherError(e.to_string()))?;
                         let ret = f(_path.as_ptr());
                         let v = c_str_to_string(ret)?;

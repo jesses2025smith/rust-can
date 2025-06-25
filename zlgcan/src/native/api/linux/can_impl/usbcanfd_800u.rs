@@ -11,7 +11,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
     fn init_can_chl(&self, libpath: &str, context: &mut ZChannelContext, cfg: &ChannelConfig) -> Result<(), CanError> {
         unsafe {
             // init can channel
-            let (dev_type, dev_hdl, channel) = (context.device_type(), context.device_handler()?, context.channel());
+            let (dev_type, dev_hdl, channel) = (context.device.dev_type, context.device_handler()?, context.channel);
             let cfg_ctx = CanChlCfgContext::new(libpath)?;
             let bc_ctx = cfg_ctx.0.get(&(dev_type as u32).to_string())
                 .ok_or(CanError::InitializeError(
@@ -39,7 +39,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
                 }
             }?;
 
-            context.set_channel_handler(Some(handler));
+            context.chl_hdl = Some(handler);
             Ok(())
         }
     }
@@ -104,7 +104,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
 
         Ok(frames.into_iter()
             .map(|mut frame| unsafe {
-                frame.can.libother.set_channel(context.channel());
+                frame.can.libother.set_channel(context.channel);
                 frame.can.libother.into()
             })
             .collect::<Vec<_>>())
@@ -140,7 +140,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
 
         Ok(frames.into_iter()
             .map(|mut frame| unsafe {
-                frame.canfd.libother.set_channel(context.channel());
+                frame.canfd.libother.set_channel(context.channel);
                 frame.canfd.libother.into()
             })
             .collect::<Vec<_>>())

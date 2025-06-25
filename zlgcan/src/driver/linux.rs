@@ -177,7 +177,7 @@ impl ZDevice for ZDriver {
 
     #[inline]
     fn timestamp(&self, channel: u8) -> Result<u64, CanError> {
-        self.can_handler(channel, |context| Ok(context.timestamp()))
+        self.can_handler(channel, |context| Ok(context.timestamp))
     }
 }
 

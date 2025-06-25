@@ -6,11 +6,11 @@ use crate::native::{
 
 impl ZDeviceApi for USBCANEApi<'_> {
     fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
-        let (dev_type, dev_idx) = (context.device_type(), context.device_index());
+        let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         match unsafe { (self.ZCAN_OpenDevice)(dev_type as u32, dev_idx, 0) } as u32 {
             Self::INVALID_DEVICE_HANDLE => Err(CanError::InitializeError(format!("`ZCAN_OpenDevice` ret: {}", Self::INVALID_DEVICE_HANDLE))),
             handler => {
-                context.set_device_handler(handler);
+                context.dev_hdl = Some(handler);
                 Ok(())
             },
         }
@@ -32,7 +32,7 @@ impl ZDeviceApi for USBCANEApi<'_> {
     }
 
     fn get_property(&self, context: &ZChannelContext) -> Result<IProperty, CanError> {
-        self.self_get_property(context.device_context())
+        self.self_get_property(&context.device)
     }
 
     fn release_property(&self, p: &IProperty) -> Result<(), CanError> {

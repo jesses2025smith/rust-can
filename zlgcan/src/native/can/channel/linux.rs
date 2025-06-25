@@ -1,6 +1,8 @@
 use std::ffi::c_uint;
 use rs_can::CanError;
-use crate::native::{can::{channel::{ZCanFdChlCfgSet, get_fd_set}, common::{BitrateCtx, ZCanChlCfgInner}, ZCanChlMode, ZCanChlType}};
+use crate::native::can::{ZCanChlMode, ZCanChlType};
+
+use super::{ZCanFdChlCfgSet, BitrateCtx};
 
 /// Linux USBCANFD
 #[repr(C)]
@@ -39,8 +41,8 @@ impl ZCanFdChlCfgInner {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union ZCanChlCfgUnion {
-    pub(crate) can: ZCanChlCfgInner,
-    pub(crate) canfd: ZCanFdChlCfgInner,
+    pub(crate) can: super::common::ZCanChlCfgInner,
+    pub(crate) canfd: super::common::ZCanFdChlCfgInner,
 }
 
 pub(crate) fn get_fd_cfg(
@@ -50,7 +52,7 @@ pub(crate) fn get_fd_cfg(
     dbitrate: Option<u32>,
     ctx: &BitrateCtx,
 ) -> Result<self::ZCanFdChlCfgInner, CanError> {
-    let (aset, dset) = get_fd_set(bitrate, dbitrate, ctx)?;
+    let (aset, dset) = super::get_fd_set(bitrate, dbitrate, ctx)?;
     let clock = ctx.clock
         .ok_or(CanError::other_error("`clock` is not configured in file!"))?;
 
