@@ -2,7 +2,12 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use rand::{Rng, rng, prelude::ThreadRng};
 use rs_can::{CanError, CanFrame, CanId, ChannelConfig, DeviceBuilder, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
-use zlgcan_rs::{can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode}, device::{DeriveInfo, ZCanDeviceType}, driver::{ZCanDriver, ZDevice}, CHANNEL_MODE, CHANNEL_TYPE, DERIVE_INFO, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
+use zlgcan_rs::{
+    can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode},
+    device::{DeriveInfo, ZCanDeviceType},
+    driver::{ZDriver, ZDevice, ZCan},
+    CHANNEL_MODE, CHANNEL_TYPE, DERIVE_INFO, DEVICE_INDEX, DEVICE_TYPE, LIBPATH
+};
 
 fn generate_can_id(rng: &mut ThreadRng, extend: bool) -> u32 {
     if extend {
@@ -47,7 +52,7 @@ pub fn device_open(
     channels: u8,
     available: u8,
     canfd: bool,
-) -> anyhow::Result<ZCanDriver> {
+) -> anyhow::Result<ZDriver> {
     let mut builder = DeviceBuilder::new();
     builder
         .add_other(LIBPATH, Box::new("library/".to_string()))
@@ -64,7 +69,7 @@ pub fn device_open(
         builder.add_config(i, cfg);
     }
 
-    let device = builder.build::<ZCanDriver>()?;
+    let device = builder.build::<ZDriver>()?;
 
     let dev_info = device.device_info()?;
     assert_eq!(dev_info.can_channels(), channels);
@@ -73,7 +78,7 @@ pub fn device_open(
     Ok(device)
 }
 
-fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+fn transmit_can(driver: &ZDriver, comm_count: u32, ext_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let frames1 = new_messages(comm_count, false, false, None)?;
     let frames2 = new_messages(ext_count, false, true, None)?;
     // create CAN frames
@@ -116,7 +121,7 @@ fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: 
     Ok(())
 }
 
-fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+fn transmit_canfd(driver: &ZDriver, comm_count: u32, ext_count: u32, brs_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let frames1 = new_messages(comm_count, true, false, None)?;
     let frames2 = new_messages(ext_count, true, true, None)?;
     let frames3 = new_messages(brs_count, true, false, Some(true))?;
@@ -175,7 +180,7 @@ fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_coun
 }
 
 #[allow(dead_code)]
-pub fn can_device1(driver: &mut ZCanDriver) -> anyhow::Result<()> {
+pub fn can_device1(driver: &mut ZDriver) -> anyhow::Result<()> {
     let trans_ch = 0;
     let recv_ch = 0;
     let comm_count = 5;
@@ -188,7 +193,7 @@ pub fn can_device1(driver: &mut ZCanDriver) -> anyhow::Result<()> {
 }
 
 #[allow(dead_code)]
-pub fn can_device2(driver: &mut ZCanDriver, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+pub fn can_device2(driver: &mut ZDriver, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let comm_count = 5;
     let ext_count = 5;
 
@@ -199,7 +204,7 @@ pub fn can_device2(driver: &mut ZCanDriver, trans_ch: u8, recv_ch: u8) -> anyhow
 }
 
 #[allow(dead_code)]
-pub fn canfd_device2(driver: &mut ZCanDriver, available: u8, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+pub fn canfd_device2(driver: &mut ZDriver, available: u8, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let comm_count = 5;
     let ext_count = 5;
     let brs_count = 5;

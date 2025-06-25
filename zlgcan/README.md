@@ -27,7 +27,7 @@
 
 ```rust
 use rs_can::{CanError, DeviceBuilder, ChannelConfig};
-use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType}, device::ZCanDeviceType, driver::{ZDevice, ZCanDriver}, CHANNEL_MODE, CHANNEL_TYPE, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
+use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType}, device::ZCanDeviceType, driver::{ZDevice, ZDriver}, CHANNEL_MODE, CHANNEL_TYPE, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
 
 fn main() -> Result<(), CanError> {
     let mut builder = DeviceBuilder::new();
@@ -47,7 +47,7 @@ fn main() -> Result<(), CanError> {
         .add_config(0, ch1_cfg)
         .add_config(1, ch2_cfg);
 
-    let device = builder.build::<ZCanDriver>()?;
+    let device = builder.build::<ZDriver>()?;
     // todo something
 
     Ok(())

@@ -9,13 +9,8 @@ use crate::api::{USBCANApi, USBCANEApi, USBCANFDApi, USBCANFD800UApi, ZCanApi, Z
 use crate::driver::{lin_support, ZDevice};
 use crate::utils;
 
-#[cfg(target_arch = "x86")]
-const LIB_PATH: &str = "linux/x86/";
-#[cfg(target_arch = "x86_64")]
-const LIB_PATH: &str = "linux/x86_64/";
-
 #[derive(Clone)]
-pub struct ZCanDriver {
+pub struct ZDriver {
     pub(crate) libpath:           String,
     pub(crate) handler:           Option<Handler>,
     pub(crate) usbcan_api:        Arc<Container<USBCANApi<'static>>>,
@@ -28,7 +23,7 @@ pub struct ZCanDriver {
     pub(crate) derive:            Option<DeriveInfo>,
 }
 
-impl ZDevice for ZCanDriver {
+impl ZDevice for ZDriver {
     fn new(libpath: String, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
         let mut path = PathBuf::from(&libpath);
         path.push(LIB_PATH);
@@ -684,4 +679,3 @@ impl ZDevice for ZCanDriver {
         }
     }
 }
-

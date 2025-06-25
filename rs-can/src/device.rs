@@ -1,8 +1,7 @@
 use std::{any::{Any, type_name}, collections::HashMap, hash::Hash};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
-use crate::error::Error;
-use crate::frame::{Frame, Id};
+use crate::{error::Error, frame::{Frame, Id}};
 
 #[cfg(not(feature = "async"))]
 pub type CanResult<R, E> = Result<R, E>;

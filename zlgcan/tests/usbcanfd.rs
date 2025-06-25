@@ -4,11 +4,11 @@ use std::{thread, time::{Duration, SystemTime}};
 
 use anyhow::Ok;
 use rs_can::ChannelConfig;
-use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType, ZCanFrameType}, device::ZCanDeviceType, driver::{ZCanDriver, ZDevice}, CHANNEL_MODE, CHANNEL_TYPE};
+use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType, ZCanFrameType}, device::ZCanDeviceType, driver::{ZDriver, ZCan}, CHANNEL_MODE, CHANNEL_TYPE};
 use self::utils::{canfd_device2, device_open};
 
 #[allow(unused)]
-fn only_recv(driver: &mut ZCanDriver, available: u8, recv_ch: u8) -> anyhow::Result<()> {
+fn only_recv(driver: &mut ZDriver, available: u8, recv_ch: u8) -> anyhow::Result<()> {
     for i in 0..available {
         let mut cfg = ChannelConfig::new(500_000);
         cfg.set_data_bitrate(1_000_000)
