@@ -26,7 +26,8 @@ pub fn c_str_to_string(src: *const c_char) -> Result<String, CanError> {
 }
 
 #[inline]
-pub(crate) fn get_libpath(mut path: PathBuf, libname: &str) -> PathBuf {
+pub(crate) fn get_libpath(path: &PathBuf, libname: &str) -> PathBuf {
+    let mut path = path.clone();
     path.push(LIB_PATH);
     path.push(&libname);
     rsutil::trace!("absolute library path: {:?}", std::fs::canonicalize(&path));

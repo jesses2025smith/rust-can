@@ -28,19 +28,19 @@ pub struct ZDriver {
 
 impl ZDevice for ZDriver {
     fn new(libpath: String, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
-        let mut path = PathBuf::from(&libpath);
+        let path = PathBuf::from(&libpath);
         Ok(Self {
             libpath,
             handler: Default::default(),
-            usbcan_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcan.so")) }
+            usbcan_api: Arc::new(unsafe { Container::load(&get_libpath(&path, "libusbcan.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcan_4e_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcan-4e.so")) }
+            usbcan_4e_api: Arc::new(unsafe { Container::load(&get_libpath(&path, "libusbcan-4e.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcan_8e_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcan-8e.so")) }
+            usbcan_8e_api: Arc::new(unsafe { Container::load(&get_libpath(&path, "libusbcan-8e.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcanfd_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcanfd.so")) }
+            usbcanfd_api: Arc::new(unsafe { Container::load(&get_libpath(&path, "libusbcanfd.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
-            usbcanfd_800u_api: Arc::new(unsafe { Container::load(&get_libpath(path.clone(), "libusbcanfd800u.so")) }
+            usbcanfd_800u_api: Arc::new(unsafe { Container::load(&get_libpath(&path, "libusbcanfd800u.so")) }
                 .map_err(|e| CanError::InitializeError(e.to_string()))?),
             dev_type,
             dev_idx,

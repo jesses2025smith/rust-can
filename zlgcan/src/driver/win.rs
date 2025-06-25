@@ -25,8 +25,9 @@ pub struct ZDriver {
 
 impl ZDevice for ZDriver {
     fn new(libpath: String, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError> {
+        let path = PathBuf::from(&libpath);
         let api = Arc::new(unsafe {
-            Container::load(&get_libpath(PathBuf::from(&libpath), "zlgcan.dll"))
+            Container::load(&get_libpath(&PathBuf::from(&path), "zlgcan.dll"))
                 .map_err(|e| CanError::InitializeError(e.to_string()))
         }?);
         Ok(Self { libpath, handler: Default::default(), api, dev_type, dev_idx, derive })
