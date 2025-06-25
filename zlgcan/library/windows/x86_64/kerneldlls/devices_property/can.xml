@@ -78,6 +78,10 @@
 				<option type="int32" value="79" desc="ZPSCANFD-USB" />
 				<option type="int32" value="80" desc="CANFDBridge+" />
 				<option type="int32" value="81" desc="CANFDDTU-300" />
+				<option type="int32" value="82" desc="PCIE-CANFD-800U" />
+				<option type="int32" value="83" desc="PCIE-CANFD-1200U" />
+				<option type="int32" value="84" desc="MINI-PCIE-CANFD" />
+				<option type="int32" value="85" desc="USBCANFD-800H" />
 			</options>
 		</meta>
 		<PCI5121 stream="PCI5121" case="parent-value=1">
@@ -765,5 +769,42 @@
 				</meta>
 			</include_file>
 		</CANFDDTU-300>		
+		<PCIE-CANFD-800U stream="PCIE-CANFD-800U" case="parent-value=82">
+			<include_file>
+				<value>pcie-canfd-800u.xml</value>
+				<meta>
+					<type>string</type>
+					<desc>PCIE-CANFD-800U config file</desc>
+				</meta>
+			</include_file>
+		</PCIE-CANFD-800U>
+		<PCIE-CANFD-1200U stream="PCIE-CANFD-1200U" case="parent-value=83">
+			<include_file>
+				<value>pcie-canfd-1200u.xml</value>
+				<meta>
+					<type>string</type>
+					<desc>PCIE-CANFD-1200U config file</desc>
+				</meta>
+			</include_file>
+		</PCIE-CANFD-1200U>
+		<MINI-PCIE-CANFD stream="MINI-PCIE-CANFD" case="parent-value=84">
+			<include_file>
+				<value>mini-pcie-canfd.xml</value>
+				<meta>
+					<type>string</type>
+					<desc>MINI-PCIE-CANFD config file</desc>
+				</meta>
+			</include_file>
+		</MINI-PCIE-CANFD>
+		<USBCANFD-800H stream="USBCANFD-800H" case="parent-value=85">
+			<include_file>
+				<value>usbcanfd-800h.xml</value>
+				<meta>
+					<type>string</type>
+					<desc>USBCANFD-800H config file</desc>
+				</meta>
+			</include_file>
+		</USBCANFD-800H>
+
 	</DeviceType>
 </info>
