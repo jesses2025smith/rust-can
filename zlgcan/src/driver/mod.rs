@@ -7,8 +7,6 @@ mod win;
 #[cfg(target_os = "windows")]
 pub use win::ZDriver;
 
-use std::collections::HashMap;
-use rs_can::{CanDevice, CanError, CanFrame, CanResult, CanType, ChannelConfig, DeviceBuilder};
 use crate::{
     constants,
     native::{
@@ -17,8 +15,10 @@ use crate::{
         cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData},
         device::{DeriveInfo, ZCanDeviceType, ZDeviceInfo},
         lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe},
-    }
+    },
 };
+use rs_can::{CanDevice, CanError, CanFrame, CanResult, CanType, ChannelConfig, DeviceBuilder};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 #[repr(C)]
@@ -30,10 +30,7 @@ pub(crate) struct Handler {
 }
 
 impl Handler {
-    pub fn new(
-        device: ZDeviceContext,
-        info: ZDeviceInfo,
-    ) -> Self {
+    pub fn new(device: ZDeviceContext, info: ZDeviceInfo) -> Self {
         Self {
             device,
             info,
@@ -86,7 +83,8 @@ impl Handler {
 impl ZDriver {
     pub(crate) fn device_handler<C, T>(&self, callback: C) -> Result<T, CanError>
     where
-        C: FnOnce(&Handler) -> Result<T, CanError> {
+        C: FnOnce(&Handler) -> Result<T, CanError>,
+    {
         match &self.handler {
             Some(v) => callback(v),
             None => Err(CanError::device_not_opened()),
@@ -96,7 +94,8 @@ impl ZDriver {
     #[inline(always)]
     pub(crate) fn can_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, CanError>
     where
-        C: FnOnce(&ZChannelContext) -> Result<T, CanError> {
+        C: FnOnce(&ZChannelContext) -> Result<T, CanError>,
+    {
         self.device_handler(|hdl| -> Result<T, CanError> {
             match hdl.find_can(channel) {
                 Some(context) => callback(context),
@@ -108,7 +107,8 @@ impl ZDriver {
     #[inline(always)]
     pub(crate) fn lin_handler<C, T>(&self, channel: u8, callback: C) -> Result<T, CanError>
     where
-        C: FnOnce(&ZChannelContext) -> Result<T, CanError> {
+        C: FnOnce(&ZChannelContext) -> Result<T, CanError>,
+    {
         self.device_handler(|hdl| -> Result<T, CanError> {
             match hdl.lin_channels().get(&channel) {
                 Some(chl) => callback(chl),
@@ -125,10 +125,7 @@ impl CanDevice for ZDriver {
     #[inline]
     fn opened_channels(&self) -> Vec<Self::Channel> {
         match &self.handler {
-            Some(v) =>
-                v.can_channels().keys()
-                    .map(|v| v.clone())
-                    .collect(),
+            Some(v) => v.can_channels().keys().map(|v| v.clone()).collect(),
             None => vec![],
         }
     }
@@ -136,15 +133,19 @@ impl CanDevice for ZDriver {
     fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
         let channel = msg.channel();
         let _ = match msg.can_type() {
-            CanType::Can => self.transmit_can(channel, vec![msg, ]),
-            CanType::CanFd => self.transmit_canfd(channel, vec![msg, ]),
+            CanType::Can => self.transmit_can(channel, vec![msg]),
+            CanType::CanFd => self.transmit_canfd(channel, vec![msg]),
             CanType::CanXl => Err(CanError::NotSupportedError),
         }?;
 
         Ok(())
     }
 
-    fn receive(&self, channel: Self::Channel, timeout: Option<u32>) -> CanResult<Vec<Self::Frame>, CanError> {
+    fn receive(
+        &self,
+        channel: Self::Channel,
+        timeout: Option<u32>,
+    ) -> CanResult<Vec<Self::Frame>, CanError> {
         let mut results: Vec<CanMessage> = Vec::new();
 
         let count_can = self.get_can_num(channel, ZCanFrameType::CAN)?;
@@ -176,22 +177,24 @@ impl TryFrom<DeviceBuilder<u8>> for ZDriver {
     type Error = CanError;
 
     fn try_from(builder: DeviceBuilder<u8>) -> Result<Self, Self::Error> {
-        let libpath = builder.get_other::<String>(constants::LIBPATH)?
+        let libpath = builder
+            .get_other::<String>(constants::LIBPATH)?
             .ok_or(CanError::other_error("`libpath` not found`"))?;
-        let dev_type = builder.get_other::<ZCanDeviceType>(constants::DEVICE_TYPE)?
+        let dev_type = builder
+            .get_other::<ZCanDeviceType>(constants::DEVICE_TYPE)?
             .ok_or(CanError::other_error("`device_type` not found`"))?;
-        let dev_idx = builder.get_other::<u32>(constants::DEVICE_INDEX)?
+        let dev_idx = builder
+            .get_other::<u32>(constants::DEVICE_INDEX)?
             .ok_or(CanError::other_error("`device_index` not found`"))?;
         let derive = builder.get_other::<DeriveInfo>(constants::DERIVE_INFO)?;
 
         let mut device = Self::new(libpath, dev_type, dev_idx, derive)?;
         device.open()?;
 
-        builder.channel_configs()
+        builder
+            .channel_configs()
             .iter()
-            .try_for_each(|(&chl, cfg)| {
-                device.init_can_chl(chl, cfg)
-            })?;
+            .try_for_each(|(&chl, cfg)| device.init_can_chl(chl, cfg))?;
 
         Ok(device)
     }
@@ -199,7 +202,12 @@ impl TryFrom<DeviceBuilder<u8>> for ZDriver {
 
 #[allow(unused_variables)]
 pub trait ZDevice {
-    fn new(libpath: String, dev_type: ZCanDeviceType, dev_idx: u32, derive: Option<DeriveInfo>) -> Result<Self, CanError>
+    fn new(
+        libpath: String,
+        dev_type: ZCanDeviceType,
+        dev_idx: u32,
+        derive: Option<DeriveInfo>,
+    ) -> Result<Self, CanError>
     where
         Self: Sized;
     fn device_type(&self) -> ZCanDeviceType;
@@ -223,9 +231,19 @@ pub trait ZCan {
     fn read_can_chl_error(&self, channel: u8) -> Result<ZCanChlError, CanError>;
     fn clear_can_buffer(&self, channel: u8) -> Result<(), CanError>;
     fn get_can_num(&self, channel: u8, can_type: ZCanFrameType) -> Result<u32, CanError>;
-    fn receive_can(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, CanError>;
+    fn receive_can(
+        &self,
+        channel: u8,
+        size: u32,
+        timeout: Option<u32>,
+    ) -> Result<Vec<CanMessage>, CanError>;
     fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, CanError>;
-    fn receive_canfd(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<CanMessage>, CanError> {
+    fn receive_canfd(
+        &self,
+        channel: u8,
+        size: u32,
+        timeout: Option<u32>,
+    ) -> Result<Vec<CanMessage>, CanError> {
         Err(CanError::NotSupportedError)
     }
     fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, CanError> {
@@ -247,7 +265,12 @@ pub trait ZLin {
     fn get_lin_num(&self, channel: u8) -> Result<u32, CanError> {
         Err(CanError::NotSupportedError)
     }
-    fn receive_lin(&self, channel: u8, size: u32, timeout: Option<u32>) -> Result<Vec<ZLinFrame>, CanError> {
+    fn receive_lin(
+        &self,
+        channel: u8,
+        size: u32,
+        timeout: Option<u32>,
+    ) -> Result<Vec<ZLinFrame>, CanError> {
         Err(CanError::NotSupportedError)
     }
     fn transmit_lin(&self, channel: u8, frames: Vec<ZLinFrame>) -> Result<u32, CanError> {
@@ -292,7 +315,11 @@ pub trait ZCloud {
     fn get_userdata(&self, update: Option<i32>) -> Result<ZCloudUserData, CanError> {
         Err(CanError::NotSupportedError)
     }
-    fn receive_gps(&self, size: u32, timeout: Option<u32>) -> Result<Vec<ZCloudGpsFrame>, CanError> {
+    fn receive_gps(
+        &self,
+        size: u32,
+        timeout: Option<u32>,
+    ) -> Result<Vec<ZCloudGpsFrame>, CanError> {
         Err(CanError::NotSupportedError)
     }
 }
@@ -304,7 +331,6 @@ pub(crate) fn lin_support(dev_type: ZCanDeviceType) -> Result<(), CanError> {
     }
     Ok(())
 }
-
 
 /// device is supported CLOUD
 #[allow(dead_code)]

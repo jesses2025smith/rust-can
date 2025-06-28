@@ -1,11 +1,12 @@
-use dlopen2::symbor::{Symbol, SymBorApi};
-use std::ffi::{c_uint, c_void};
 use crate::native::{
-    can::{ZCanFdChlCfgInner, ZCanFrame, ZCanChlError, ZCanChlStatus},
+    can::{ZCanChlError, ZCanChlStatus, ZCanFdChlCfgInner, ZCanFrame},
     device::ZDeviceInfo,
     lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe},
 };
+use dlopen2::symbor::{SymBorApi, Symbol};
+use std::ffi::{c_uint, c_void};
 
+#[rustfmt::skip]
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct USBCANFDApi<'a> {
@@ -82,18 +83,18 @@ impl USBCANFDApi<'_> {
 
 #[cfg(test)]
 mod tests {
-    use dlopen2::symbor::{Library, SymBorApi};
-    use rs_can::{CanError, CanFrame, CanId, ChannelConfig};
+    use super::USBCANFDApi;
     use crate::{
         constants,
         native::{
-            api::{ZCanApi, ZDeviceApi, ZChannelContext, ZDeviceContext},
+            api::{ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
+            can::{CanMessage, ZCanChlMode, ZCanChlType},
             constants::LOAD_LIB_FAILED,
-            can::{ZCanChlMode, ZCanChlType, CanMessage},
-            device::{ZCanDeviceType, },
-        }
+            device::ZCanDeviceType,
+        },
     };
-    use super::USBCANFDApi;
+    use dlopen2::symbor::{Library, SymBorApi};
+    use rs_can::{CanError, CanFrame, CanId, ChannelConfig};
 
     #[test]
     fn test_init_channel() -> anyhow::Result<()> {
@@ -129,14 +130,14 @@ mod tests {
         api.init_can_chl("library", &mut context, &cfg)?;
         let frame = CanMessage::new(
             CanId::from_bits(0x7E0, Some(false)),
-            [0x01, 0x02, 0x03].as_slice()
+            [0x01, 0x02, 0x03].as_slice(),
         )
-            .ok_or(CanError::other_error("invalid data length"))?;
+        .ok_or(CanError::other_error("invalid data length"))?;
         let frame1 = CanMessage::new(
             CanId::from_bits(0x1888FF00, Some(true)),
-            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice()
+            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice(),
         )
-            .ok_or(CanError::other_error("invalid data length"))?;
+        .ok_or(CanError::other_error("invalid data length"))?;
         let frames = vec![frame, frame1];
         let ret = api.transmit_can(&context, frames)?;
         assert_eq!(ret, 2);
@@ -148,4 +149,3 @@ mod tests {
         Ok(())
     }
 }
-

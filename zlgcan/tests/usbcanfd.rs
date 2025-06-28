@@ -1,11 +1,18 @@
 mod utils;
 
-use std::{thread, time::{Duration, SystemTime}};
+use std::{
+    thread,
+    time::{Duration, SystemTime},
+};
 
-use anyhow::Ok;
-use rs_can::ChannelConfig;
-use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType, ZCanFrameType}, device::ZCanDeviceType, driver::{ZDriver, ZCan}, CHANNEL_MODE, CHANNEL_TYPE};
 use self::utils::{canfd_device2, device_open};
+use rs_can::ChannelConfig;
+use zlgcan_rs::{
+    can::{ZCanChlMode, ZCanChlType, ZCanFrameType},
+    device::ZCanDeviceType,
+    driver::{ZCan, ZDriver},
+    CHANNEL_MODE, CHANNEL_TYPE,
+};
 
 #[allow(unused)]
 fn only_recv(driver: &mut ZDriver, available: u8, recv_ch: u8) -> anyhow::Result<()> {
@@ -56,7 +63,7 @@ fn usbcanfd_200u() -> anyhow::Result<()> {
     let available = 2;
     let mut driver = device_open(dev_type, dev_idx, None, channels, available, true)?;
     // only_recv(&mut driver, available, 0)?;
-    canfd_device2(&mut driver, available,0, 1)?;
+    canfd_device2(&mut driver, available, 0, 1)?;
     Ok(())
 }
 

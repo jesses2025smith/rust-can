@@ -1,6 +1,15 @@
-use std::{ffi::{c_uchar, c_uint}, fmt::{Display, Formatter}};
-use rs_can::{can_utils, CanDirect, CanError, CanType, IdentifierFlags, DEFAULT_PADDING, EFF_MASK, MAX_FRAME_SIZE};
-use crate::native::can::{CanMessage, constants::{CANFD_BRS, CANFD_ESI}};
+use crate::native::can::{
+    constants::{CANFD_BRS, CANFD_ESI},
+    CanMessage,
+};
+use rs_can::{
+    can_utils, CanDirect, CanError, CanType, IdentifierFlags, DEFAULT_PADDING, EFF_MASK,
+    MAX_FRAME_SIZE,
+};
+use std::{
+    ffi::{c_uchar, c_uint},
+    fmt::{Display, Formatter},
+};
 
 /// Then CAN frame type used in crate.
 #[repr(C)]
@@ -37,10 +46,10 @@ impl Display for ZCanFrameType {
 #[derive(Debug, Default, Copy, Clone)]
 pub enum ZCanTxMode {
     #[default]
-    Normal = 0,             //**< normal transmission */
-    Once = 1,               //**< single-shot transmission */
-    SelfReception = 2,      //**< self reception */
-    SelfReceptionOnce = 3,  //**< single-shot transmission & self reception */
+    Normal = 0, //**< normal transmission */
+    Once = 1,              //**< single-shot transmission */
+    SelfReception = 2,     //**< self reception */
+    SelfReceptionOnce = 3, //**< single-shot transmission & self reception */
 }
 
 impl TryFrom<u8> for ZCanTxMode {
@@ -69,7 +78,7 @@ pub(crate) struct ZCanChlErrorInner {
 pub(crate) struct ZCanMsg20<const S: usize> {
     pub(crate) can_id: c_uint,
     pub(crate) can_len: c_uchar,
-    pub(crate) flags: c_uchar,  /* padding when using can else additional flags for CAN FD,i.e error code */
+    pub(crate) flags: c_uchar, /* padding when using can else additional flags for CAN FD,i.e error code */
     pub(crate) __res0: c_uchar, /* reserved / padding (used for channel) */
     #[allow(dead_code)]
     pub(crate) __res1: c_uchar, /* reserved / padding */
@@ -77,19 +86,14 @@ pub(crate) struct ZCanMsg20<const S: usize> {
 }
 
 impl<const S: usize> ZCanMsg20<S> {
-    pub fn new(
-        can_id: c_uint,
-        can_len: c_uchar,
-        flags: c_uchar,
-        data: [c_uchar; S],
-    ) -> Self {
+    pub fn new(can_id: c_uint, can_len: c_uchar, flags: c_uchar, data: [c_uchar; S]) -> Self {
         Self {
             can_id,
             can_len,
             flags,
             __res0: Default::default(),
             __res1: Default::default(),
-            data
+            data,
         }
     }
 
@@ -159,10 +163,16 @@ impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
         let can_id = can_id_add_flags(&msg);
         let length = msg.data.len() as u8;
         let flags = if is_fd {
-            (if msg.bitrate_switch { CANFD_BRS } else { Default::default() }) |
-            (if msg.error_state_indicator { CANFD_ESI } else { Default::default() })
-        }
-        else {
+            (if msg.bitrate_switch {
+                CANFD_BRS
+            } else {
+                Default::default()
+            }) | (if msg.error_state_indicator {
+                CANFD_ESI
+            } else {
+                Default::default()
+            })
+        } else {
             Default::default()
         };
         let mut data = msg.data;
@@ -174,8 +184,20 @@ impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
 
 // pub(crate) type ZCanChlError = ZCanChlErrorInner;
 fn can_id_add_flags(msg: &CanMessage) -> u32 {
-    msg.arbitration_id |
-        if msg.is_extended_id { IdentifierFlags::EXTENDED.bits() } else { Default::default() } |
-        if msg.is_remote_frame { IdentifierFlags::REMOTE.bits() } else { Default::default() } |
-        if msg.is_error_frame { IdentifierFlags::ERROR.bits() } else { Default::default() }
+    msg.arbitration_id
+        | if msg.is_extended_id {
+            IdentifierFlags::EXTENDED.bits()
+        } else {
+            Default::default()
+        }
+        | if msg.is_remote_frame {
+            IdentifierFlags::REMOTE.bits()
+        } else {
+            Default::default()
+        }
+        | if msg.is_error_frame {
+            IdentifierFlags::ERROR.bits()
+        } else {
+            Default::default()
+        }
 }

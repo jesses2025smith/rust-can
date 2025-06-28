@@ -1,9 +1,12 @@
 include!("property.rs");
 include!("typedef.rs");
 
-use std::{ffi::{c_uchar, c_ushort, CString}, fmt::{Display, Formatter}};
-use rs_can::CanError;
 use crate::native::constants::CANFD_STR;
+use rs_can::CanError;
+use std::{
+    ffi::{c_uchar, c_ushort, CString},
+    fmt::{Display, Formatter},
+};
 
 const SN_LENGTH: usize = 20;
 const ID_LENGTH: usize = 40;
@@ -21,14 +24,14 @@ pub struct DeriveInfo {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct ZDeviceInfo {
-    pub(crate) hwv: c_ushort,           //**< hardware version */
-    pub(crate) fwv: c_ushort,           //**< firmware version */
-    pub(crate) drv: c_ushort,           //**< driver version */
-    pub(crate) api: c_ushort,           //**< API version */
-    pub(crate) irq: c_ushort,           //**< IRQ */
-    pub(crate) chn: c_uchar,            //**< channels */
-    pub(crate) sn: [c_uchar; SN_LENGTH],//**< serial number */
-    pub(crate) id: [c_uchar; ID_LENGTH],//**< card id */
+    pub(crate) hwv: c_ushort,            //**< hardware version */
+    pub(crate) fwv: c_ushort,            //**< firmware version */
+    pub(crate) drv: c_ushort,            //**< driver version */
+    pub(crate) api: c_ushort,            //**< API version */
+    pub(crate) irq: c_ushort,            //**< IRQ */
+    pub(crate) chn: c_uchar,             //**< channels */
+    pub(crate) sn: [c_uchar; SN_LENGTH], //**< serial number */
+    pub(crate) id: [c_uchar; ID_LENGTH], //**< card id */
     #[allow(dead_code)]
     pub(crate) pad: [c_ushort; PAD_LENGTH],
 }
@@ -53,7 +56,11 @@ impl Default for ZDeviceInfo {
 impl TryFrom<&DeriveInfo> for ZDeviceInfo {
     type Error = CanError;
     fn try_from(value: &DeriveInfo) -> Result<Self, Self::Error> {
-        let device = if value.canfd {  "Derive USBCANFD device" } else { "Derive USBCAN device" };
+        let device = if value.canfd {
+            "Derive USBCANFD device"
+        } else {
+            "Derive USBCAN device"
+        };
         let mut id = CString::new(device)
             .as_ref()
             .map_err(|e| CanError::OtherError(e.to_string()))?
@@ -62,7 +69,9 @@ impl TryFrom<&DeriveInfo> for ZDeviceInfo {
         id.resize(ID_LENGTH, 0);
         Ok(Self {
             chn: value.channels,
-            id: id.try_into().map_err(|v| CanError::OtherError(format!("{:?}", v)))?,
+            id: id
+                .try_into()
+                .map_err(|v| CanError::OtherError(format!("{:?}", v)))?,
             ..Default::default()
         })
     }
@@ -75,10 +84,20 @@ impl ZDeviceInfo {
         let minor = (ver & 0xFF) as u8;
         let h_major = (major & 0xF0) >> 4;
         if h_major > 0 {
-            format!("V{:1}{:1}.{:1}{:1}", h_major, major & 0x0F, (minor & 0xF0) >> 4, minor & 0x0F)
-        }
-        else {
-            format!("V{:1}.{:1}{:1}", major & 0x0F, (minor & 0xF0) >> 4, minor & 0x0F)
+            format!(
+                "V{:1}{:1}.{:1}{:1}",
+                h_major,
+                major & 0x0F,
+                (minor & 0xF0) >> 4,
+                minor & 0x0F
+            )
+        } else {
+            format!(
+                "V{:1}.{:1}{:1}",
+                major & 0x0F,
+                (minor & 0xF0) >> 4,
+                minor & 0x0F
+            )
         }
     }
     #[inline(always)]
@@ -151,11 +170,13 @@ impl Display for ZDeviceInfo {
 /// use for batch setting parameters for device.
 /// path used on windows and linux USBCANFD-4E|8E and USBCANFD-800U
 /// reference only used on Linux USBCAN USBCANFD
+#[allow(unused)]
 pub(crate) union CmdPath<'a> {
     path: &'a str,
     reference: u32,
 }
 
+#[allow(unused)]
 impl<'a> CmdPath<'a> {
     #[inline(always)]
     pub fn new_path(path: &'a str) -> Self {

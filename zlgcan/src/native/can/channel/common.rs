@@ -1,7 +1,18 @@
-use std::{collections::HashMap, fs::read_to_string, ffi::{c_uchar, c_uint, c_ushort}, path::PathBuf};
-use serde::Deserialize;
+use crate::{
+    constants,
+    native::can::{
+        constants::{BITRATE_CFG_FILENAME, TIMING0, TIMING1},
+        ZCanFilterType,
+    },
+};
 use rs_can::{CanError, ChannelConfig};
-use crate::{constants, native::can::{ZCanFilterType, constants::{BITRATE_CFG_FILENAME, TIMING0, TIMING1}}};
+use serde::Deserialize;
+use std::{
+    collections::HashMap,
+    ffi::{c_uchar, c_uint, c_ushort},
+    fs::read_to_string,
+    path::PathBuf,
+};
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -50,7 +61,7 @@ pub(crate) struct BitrateCtx {
     pub(crate) bitrate: HashMap<String, HashMap<String, u32>>,
     pub(crate) clock: Option<u32>,
     #[allow(unused)]
-    pub(crate) data_bitrate: Option<HashMap<String, HashMap<String, u32>>>
+    pub(crate) data_bitrate: Option<HashMap<String, HashMap<String, u32>>>,
 }
 
 #[derive(Debug)]
@@ -91,7 +102,7 @@ impl ZCanChlCfgInner {
         timing1: u32,
         filter: ZCanFilterType,
         acc_code: Option<u32>,
-        acc_mask: Option<u32>
+        acc_mask: Option<u32>,
     ) -> Result<Self, CanError> {
         Ok(Self {
             acc_code: acc_code.unwrap_or(0),
@@ -104,17 +115,18 @@ impl ZCanChlCfgInner {
         })
     }
 
-    pub(crate) fn try_from_with(
-        ctx: &BitrateCtx,
-        cfg: &ChannelConfig
-    ) -> Result<Self, CanError> {
+    pub(crate) fn try_from_with(ctx: &BitrateCtx, cfg: &ChannelConfig) -> Result<Self, CanError> {
         let bitrate = cfg.bitrate();
         match ctx.bitrate.get(&bitrate.to_string()) {
             Some(v) => {
-                let &timing0 = v.get(TIMING0)
-                    .ok_or(CanError::OtherError(format!("`{}` is not configured in file!", TIMING0)))?;
-                let &timing1 = v.get(TIMING1)
-                    .ok_or(CanError::OtherError(format!("`{}` is not configured in file!", TIMING1)))?;
+                let &timing0 = v.get(TIMING0).ok_or(CanError::OtherError(format!(
+                    "`{}` is not configured in file!",
+                    TIMING0
+                )))?;
+                let &timing1 = v.get(TIMING1).ok_or(CanError::OtherError(format!(
+                    "`{}` is not configured in file!",
+                    TIMING1
+                )))?;
 
                 Self::new(
                     cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
@@ -126,10 +138,11 @@ impl ZCanChlCfgInner {
                     cfg.get_other::<u32>(constants::ACC_CODE)?,
                     cfg.get_other::<u32>(constants::ACC_MASK)?,
                 )
-            },
-            None => Err(CanError::OtherError(
-                format!("the bitrate: `{}` is not configured", bitrate)
-            )),
+            }
+            None => Err(CanError::OtherError(format!(
+                "the bitrate: `{}` is not configured",
+                bitrate
+            ))),
         }
     }
 }
@@ -140,8 +153,8 @@ impl ZCanChlCfgInner {
 pub(crate) struct ZCanFdChlCfgInner {
     acc_code: c_uint,
     acc_mask: c_uint,
-    timing0: c_uint,    // abit_timing when USBCANFD
-    timing1: c_uint,    // dbit_timing when USBCANFD
+    timing0: c_uint, // abit_timing when USBCANFD
+    timing1: c_uint, // dbit_timing when USBCANFD
     brp: c_uint,
     filter: c_uchar,
     mode: c_uchar,
@@ -159,7 +172,7 @@ impl ZCanFdChlCfgInner {
         filter: ZCanFilterType,
         acc_code: Option<u32>,
         acc_mask: Option<u32>,
-        brp: Option<u32>
+        brp: Option<u32>,
     ) -> Result<Self, CanError> {
         Ok(Self {
             acc_code: acc_code.unwrap_or(0),
@@ -179,14 +192,21 @@ impl ZCanFdChlCfgInner {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ZCanChlStatus {
-    pub errInterrupt: c_uchar,  /**< not used(for backward compatibility) */
-    pub regMode: c_uchar,       /**< not used */
-    pub regStatus: c_uchar,     /**< not used */
-    pub regALCapture: c_uchar,  /**< not used */
-    pub regECCapture: c_uchar,  /**< not used */
-    pub regEWLimit: c_uchar,    /**< not used */
-    pub regRECounter: c_uchar,  /**< RX errors */
-    pub regTECounter: c_uchar,  /**< TX errors */
+    pub errInterrupt: c_uchar,
+    /**< not used(for backward compatibility) */
+    pub regMode: c_uchar,
+    /**< not used */
+    pub regStatus: c_uchar,
+    /**< not used */
+    pub regALCapture: c_uchar,
+    /**< not used */
+    pub regECCapture: c_uchar,
+    /**< not used */
+    pub regEWLimit: c_uchar,
+    /**< not used */
+    pub regRECounter: c_uchar,
+    /**< RX errors */
+    pub regTECounter: c_uchar,
+    /**< TX errors */
     pub Reserved: c_uint,
 }
-

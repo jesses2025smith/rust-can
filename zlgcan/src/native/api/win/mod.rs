@@ -1,17 +1,18 @@
 mod can_impl;
-mod device_impl;
 mod cloud_impl;
+mod device_impl;
 mod lin_impl;
 
-use std::ffi::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void};
-use dlopen2::symbor::{Symbol, SymBorApi};
 use crate::native::{
     can::{ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanFrame},
     cloud::{ZCloudGpsFrame, ZCloudUserData},
     device::{IProperty, ZDeviceInfo},
     lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe},
 };
+use dlopen2::symbor::{SymBorApi, Symbol};
+use std::ffi::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void};
 
+#[rustfmt::skip]
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct WinApi<'a> {
@@ -123,9 +124,9 @@ impl WinApi<'_> {
 
 #[cfg(test)]
 mod tests {
-    use dlopen2::symbor::{Library, SymBorApi};
-    use crate::native::constants::LOAD_LIB_FAILED;
     use super::WinApi;
+    use crate::native::constants::LOAD_LIB_FAILED;
+    use dlopen2::symbor::{Library, SymBorApi};
 
     #[test]
     fn load_symbols() {
@@ -135,4 +136,3 @@ mod tests {
         let _ = unsafe { WinApi::load(&lib) }.expect("ZLGCAN - could not load symbols!");
     }
 }
-

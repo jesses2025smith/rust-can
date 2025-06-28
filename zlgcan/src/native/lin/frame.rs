@@ -1,6 +1,6 @@
-use std::ffi::{c_uchar, c_ulong, c_ushort};
-use rs_can::CanError;
 use crate::native::lin::enums::{ZLinCheckSumMode, ZLinDataType};
+use rs_can::CanError;
+use std::ffi::{c_uchar, c_ulong, c_ushort};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
@@ -101,12 +101,12 @@ impl ZLinFrame {
 }
 
 impl ZLinFrame {
-    pub fn new(
-        chl: u8,
-        data_type: ZLinDataType,
-        data: ZLinFrameDataUnion
-    ) -> Self {
-        Self { chl, data_type: data_type as u8, data }
+    pub fn new(chl: u8, data_type: ZLinDataType, data: ZLinFrameDataUnion) -> Self {
+        Self {
+            chl,
+            data_type: data_type as u8,
+            data,
+        }
     }
 }
 
@@ -124,7 +124,7 @@ pub struct ZLinSubscribe {
 #[allow(non_snake_case)]
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct  ZLinPublish {
+pub struct ZLinPublish {
     pub ID: c_uchar,
     pub dataLen: c_uchar,
     pub data: [c_uchar; 8usize],
@@ -146,8 +146,9 @@ pub struct ZLinPublishEx {
 
 impl ZLinPublishEx {
     pub fn new<T>(pid: u8, data: T, cs_mode: ZLinCheckSumMode) -> Result<Self, CanError>
-        where
-            T: AsRef<[u8]> {
+    where
+        T: AsRef<[u8]>,
+    {
         let mut data = Vec::from(data.as_ref());
         let len = data.len();
         match len {
@@ -156,12 +157,13 @@ impl ZLinPublishEx {
                 Ok(Self {
                     ID: pid,
                     dataLen: len as u8,
-                    data: data.try_into()
+                    data: data
+                        .try_into()
                         .map_err(|_| CanError::other_error("invalid data length"))?,
                     chkSumMode: cs_mode as c_uchar,
                     reserved: Default::default(),
                 })
-            },
+            }
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }

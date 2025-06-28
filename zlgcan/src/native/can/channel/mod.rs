@@ -1,5 +1,5 @@
 pub(crate) mod common;
-pub use common::{ZCanChlStatus, ZCanChlType, ZCanChlMode};
+pub use common::{ZCanChlMode, ZCanChlStatus, ZCanChlType};
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -10,17 +10,21 @@ mod win;
 #[cfg(target_os = "windows")]
 pub(crate) use win::*;
 
-use std::{collections::HashMap, ffi::{c_uchar, c_uint, c_ushort}};
-use rs_can::{CanError, ChannelConfig};
 use crate::{
     constants,
     native::{
-        device::ZCanDeviceType,
         can::{
-            common::BitrateCtx, ZCanFilterType,
-            constants::{BRP, SJW, SMP, TSEG1, TSEG2}
-        }
-    }
+            common::BitrateCtx,
+            constants::{BRP, SJW, SMP, TSEG1, TSEG2},
+            ZCanFilterType,
+        },
+        device::ZCanDeviceType,
+    },
+};
+use rs_can::{CanError, ChannelConfig};
+use std::{
+    collections::HashMap,
+    ffi::{c_uchar, c_uint, c_ushort},
 };
 
 #[repr(C)]
@@ -36,16 +40,26 @@ pub(crate) struct ZCanFdChlCfgSet {
 impl TryFrom<&HashMap<String, u32>> for ZCanFdChlCfgSet {
     type Error = CanError;
     fn try_from(value: &HashMap<String, u32>) -> Result<Self, Self::Error> {
-        let &tseg1 = value.get(TSEG1)
-            .ok_or(CanError::OtherError(format!("`{}` is not configured in file!", TSEG1)))?;
-        let &tseg2 = value.get(TSEG2)
-            .ok_or(CanError::OtherError(format!("ZLGCAN - `{}` is not configured in file!", TSEG2)))?;
-        let &sjw = value.get(SJW)
-            .ok_or(CanError::OtherError(format!("ZLGCAN - `{}` is not configured in file!", SJW)))?;
-        let &smp = value.get(SMP)
-            .ok_or(CanError::OtherError(format!("ZLGCAN - `{}` is not configured in file!", SMP)))?;
-        let &brp = value.get(BRP)
-            .ok_or(CanError::OtherError(format!("ZLGCAN - `{}` is not configured in file!", BRP)))?;
+        let &tseg1 = value.get(TSEG1).ok_or(CanError::OtherError(format!(
+            "`{}` is not configured in file!",
+            TSEG1
+        )))?;
+        let &tseg2 = value.get(TSEG2).ok_or(CanError::OtherError(format!(
+            "ZLGCAN - `{}` is not configured in file!",
+            TSEG2
+        )))?;
+        let &sjw = value.get(SJW).ok_or(CanError::OtherError(format!(
+            "ZLGCAN - `{}` is not configured in file!",
+            SJW
+        )))?;
+        let &smp = value.get(SMP).ok_or(CanError::OtherError(format!(
+            "ZLGCAN - `{}` is not configured in file!",
+            SMP
+        )))?;
+        let &brp = value.get(BRP).ok_or(CanError::OtherError(format!(
+            "ZLGCAN - `{}` is not configured in file!",
+            BRP
+        )))?;
 
         Ok(Self::new(tseg1, tseg2, sjw, smp, brp))
     }
@@ -94,23 +108,22 @@ impl ZCanChlCfg {
                     canfd: common::ZCanFdChlCfgInner::new(
                         cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
                             .unwrap_or(ZCanChlMode::Normal),
-                        aset.get_timing(),  // timing0 and timing1 ignored expect USBCANFD_800U
+                        aset.get_timing(), // timing0 and timing1 ignored expect USBCANFD_800U
                         dset.get_timing(),
                         cfg.get_other::<ZCanFilterType>(constants::FILTER_TYPE)?
                             .unwrap_or(ZCanFilterType::default()),
                         cfg.get_other::<u32>(constants::ACC_CODE)?,
                         cfg.get_other::<u32>(constants::ACC_MASK)?,
                         cfg.get_other::<u32>(constants::BRP)?,
-                    )?
-                }
+                    )?,
+                },
             })
-        }
-        else {
+        } else {
             Ok(Self {
                 can_type: ZCanChlType::CAN as u32,
                 cfg: ZCanChlCfgUnion {
-                    can: common::ZCanChlCfgInner::try_from_with(ctx, cfg)?
-                }
+                    can: common::ZCanChlCfgInner::try_from_with(ctx, cfg)?,
+                },
             })
         }
     }
@@ -125,37 +138,50 @@ pub(crate) fn get_fd_set(
     let dbitrate_ctx = &ctx.data_bitrate;
     let aset = bitrate_ctx
         .get(&bitrate.to_string())
-        .ok_or(CanError::OtherError(format!("bitrate `{}` is not configured in file!", bitrate)))?;
-    let dset=
-        match dbitrate {
-            Some(v) => {    // dbitrate is not None
-                match dbitrate_ctx {
-                    Some(ctx) => {  // dbitrate context is not None
-                        match ctx.get(&v.to_string()) {
-                            Some(value) => Ok(value),
-                            None => Err(CanError::OtherError(format!("data bitrate `{}` is not configured in file!", v))),
-                        }
-                    },
-                    None => {   // dbitrate context is None
-                        match bitrate_ctx.get(&v.to_string()) {
-                            Some(value) => Ok(value),
-                            None => Err(CanError::OtherError(format!("data bitrate `{}` is not configured in file!", v))),
-                        }
+        .ok_or(CanError::OtherError(format!(
+            "bitrate `{}` is not configured in file!",
+            bitrate
+        )))?;
+    let dset = match dbitrate {
+        Some(v) => {
+            // dbitrate is not None
+            match dbitrate_ctx {
+                Some(ctx) => {
+                    // dbitrate context is not None
+                    match ctx.get(&v.to_string()) {
+                        Some(value) => Ok(value),
+                        None => Err(CanError::OtherError(format!(
+                            "data bitrate `{}` is not configured in file!",
+                            v
+                        ))),
                     }
                 }
-            },
-            None => {   // dbitrate is None
-                match dbitrate_ctx {
-                    Some(ctx) => {
-                        match ctx.get(&bitrate.to_string()) {
-                            Some(value) => Ok(value),
-                            None => Ok(aset),
-                        }
-                    },
-                    None => Ok(aset),
+                None => {
+                    // dbitrate context is None
+                    match bitrate_ctx.get(&v.to_string()) {
+                        Some(value) => Ok(value),
+                        None => Err(CanError::OtherError(format!(
+                            "data bitrate `{}` is not configured in file!",
+                            v
+                        ))),
+                    }
                 }
             }
-        }?;
+        }
+        None => {
+            // dbitrate is None
+            match dbitrate_ctx {
+                Some(ctx) => match ctx.get(&bitrate.to_string()) {
+                    Some(value) => Ok(value),
+                    None => Ok(aset),
+                },
+                None => Ok(aset),
+            }
+        }
+    }?;
 
-    Ok((ZCanFdChlCfgSet::try_from(aset)?, ZCanFdChlCfgSet::try_from(dset)?))
+    Ok((
+        ZCanFdChlCfgSet::try_from(aset)?,
+        ZCanFdChlCfgSet::try_from(dset)?,
+    ))
 }

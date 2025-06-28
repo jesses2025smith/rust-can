@@ -1,6 +1,9 @@
-use std::fmt::{Display, Formatter};
-use rs_can::{CanDirect, CanFrame, CanId, CanType, MAX_FRAME_SIZE, MAX_FD_FRAME_SIZE, MAX_XL_FRAME_SIZE, can_utils};
 use crate::can::ZCanTxMode;
+use rs_can::{
+    can_utils, CanDirect, CanFrame, CanId, CanType, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
+    MAX_XL_FRAME_SIZE,
+};
+use std::fmt::{Display, Formatter};
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -47,7 +50,7 @@ impl CanFrame for CanMessage {
                     error_state_indicator: false,
                     tx_mode: Default::default(),
                 })
-            },
+            }
             Err(_) => None,
         }
     }
@@ -73,7 +76,7 @@ impl CanFrame for CanMessage {
                     error_state_indicator: false,
                     tx_mode: Default::default(),
                 })
-            },
+            }
             Err(_) => None,
         }
     }
@@ -102,18 +105,24 @@ impl CanFrame for CanMessage {
     #[inline]
     fn set_can_type(&mut self, r#type: CanType) -> &mut Self {
         match r#type {
-            CanType::Can => if self.length > MAX_FRAME_SIZE {
-                rsutil::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
-                self.length = MAX_FRAME_SIZE;
-            },
-            CanType::CanFd => if self.length > MAX_FD_FRAME_SIZE {
-                rsutil::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
-                self.length = MAX_FD_FRAME_SIZE;
-            },
-            CanType::CanXl => if self.length > MAX_XL_FRAME_SIZE {
-                rsutil::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
-                self.length = MAX_XL_FRAME_SIZE;
-            },
+            CanType::Can => {
+                if self.length > MAX_FRAME_SIZE {
+                    rsutil::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
+                    self.length = MAX_FRAME_SIZE;
+                }
+            }
+            CanType::CanFd => {
+                if self.length > MAX_FD_FRAME_SIZE {
+                    rsutil::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
+                    self.length = MAX_FD_FRAME_SIZE;
+                }
+            }
+            CanType::CanXl => {
+                if self.length > MAX_XL_FRAME_SIZE {
+                    rsutil::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
+                    self.length = MAX_XL_FRAME_SIZE;
+                }
+            }
         }
 
         self.can_type = r#type;
@@ -204,13 +213,12 @@ impl PartialEq for CanMessage {
 
         if self.is_remote_frame {
             other.is_remote_frame && (self.arbitration_id == other.arbitration_id)
-        }
-        else {
-            (self.arbitration_id == other.arbitration_id) &&
-                (self.is_extended_id == other.is_extended_id) &&
-                (self.is_error_frame == other.is_error_frame) &&
-                (self.error_state_indicator == other.error_state_indicator) &&
-                (self.data == other.data)
+        } else {
+            (self.arbitration_id == other.arbitration_id)
+                && (self.is_extended_id == other.is_extended_id)
+                && (self.is_error_frame == other.is_error_frame)
+                && (self.error_state_indicator == other.error_state_indicator)
+                && (self.data == other.data)
         }
     }
 }
@@ -229,6 +237,6 @@ impl CanMessage {
 
 impl Display for CanMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <dyn CanFrame<Channel=u8> as Display>::fmt(self, f)
+        <dyn CanFrame<Channel = u8> as Display>::fmt(self, f)
     }
 }

@@ -2,7 +2,6 @@ mod channel;
 pub(crate) mod constants;
 mod frame;
 mod message;
-// mod util;
 
 pub use channel::*;
 pub use frame::*;
@@ -48,10 +47,9 @@ impl TryFrom<u8> for ZCanFilterType {
 
 /// The reference for Linux device
 pub enum Reference {
-    Filter = 0x14,          // filter setting; @see ZCAN_Filter and ZCanFilterTable
-    SkdSend = 0x16,         // timed send setting; @see ZCAN_TTX
-    SkdSendStatus = 0x17,   // timed send status; 0-disable, 1-enable
-    Resistance = 0x18,      // terminal resistance; 0-disable, 1-enable
-    Timeout = 0x44,         // send timeout; range 0~4000ms
+    Filter = 0x14,        // filter setting; @see ZCAN_Filter and ZCanFilterTable
+    SkdSend = 0x16,       // timed send setting; @see ZCAN_TTX
+    SkdSendStatus = 0x17, // timed send status; 0-disable, 1-enable
+    Resistance = 0x18,    // terminal resistance; 0-disable, 1-enable
+    Timeout = 0x44,       // send timeout; range 0~4000ms
 }
-

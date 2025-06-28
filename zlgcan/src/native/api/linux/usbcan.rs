@@ -1,11 +1,12 @@
+use dlopen2::symbor::{SymBorApi, Symbol};
 use std::ffi::c_void;
-use dlopen2::symbor::{Symbol, SymBorApi};
 
 use crate::native::{
-    can::{common::ZCanChlCfgInner, ZCanFrame, ZCanChlError, ZCanChlStatus},
+    can::{common::ZCanChlCfgInner, ZCanChlError, ZCanChlStatus, ZCanFrame},
     device::ZDeviceInfo,
 };
 
+#[rustfmt::skip]
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct USBCANApi<'a> {
@@ -48,18 +49,15 @@ impl USBCANApi<'_> {
 
 #[cfg(test)]
 mod tests {
-    use dlopen2::symbor::{Library, SymBorApi};
-    use rs_can::{CanError, CanFrame, CanId, ChannelConfig};
+    use super::USBCANApi;
     use crate::{
         api::{ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
-        can::{CanMessage, ZCanChlType, ZCanChlMode},
+        can::{CanMessage, ZCanChlMode, ZCanChlType},
         constants,
-        native::{
-            device::ZCanDeviceType,
-            constants::LOAD_LIB_FAILED
-        },
+        native::{constants::LOAD_LIB_FAILED, device::ZCanDeviceType},
     };
-    use super::USBCANApi;
+    use dlopen2::symbor::{Library, SymBorApi};
+    use rs_can::{CanError, CanFrame, CanId, ChannelConfig};
 
     #[test]
     fn test_init_channel() -> anyhow::Result<()> {
@@ -94,14 +92,14 @@ mod tests {
         api.init_can_chl("library", &mut context, &cfg)?;
         let frame = CanMessage::new(
             CanId::from_bits(0x7E0, Some(false)),
-            [0x01, 0x02, 0x03].as_slice()
+            [0x01, 0x02, 0x03].as_slice(),
         )
-            .ok_or(CanError::other_error("invalid data length"))?;
+        .ok_or(CanError::other_error("invalid data length"))?;
         let frame1 = CanMessage::new(
             CanId::from_bits(0x1888FF00, Some(true)),
-            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice()
+            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice(),
         )
-            .ok_or(CanError::other_error("invalid data length"))?;
+        .ok_or(CanError::other_error("invalid data length"))?;
         let frames = vec![frame, frame1];
         let ret = api.transmit_can(&context, frames)?;
         assert_eq!(ret, 2);
@@ -113,4 +111,3 @@ mod tests {
         Ok(())
     }
 }
-

@@ -1,18 +1,19 @@
-use std::ffi::{c_uchar, c_uint, CString};
-use dlopen2::symbor::{Symbol, SymBorApi};
+use dlopen2::symbor::{SymBorApi, Symbol};
 use rs_can::{CanError, ChannelConfig};
+use std::ffi::{c_uchar, c_uint, CString};
 
 use crate::{
     constants,
     driver::Handler,
     native::{
-        api::{ZChannelContext, ZDeviceContext, ZCanApi, ZDeviceApi},
-        can::{ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanChlCfg, ZCanChlMode},
+        api::{ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
+        can::{ZCanChlCfg, ZCanChlError, ZCanChlMode, ZCanChlStatus, ZCanFrame},
         constants::{channel_bitrate, channel_work_mode},
         device::{IProperty, SetValueFunc, ZDeviceInfo},
     },
 };
 
+#[rustfmt::skip]
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, SymBorApi)]
 pub(crate) struct USBCANEApi<'a> {
@@ -67,14 +68,15 @@ impl USBCANEApi<'_> {
         let mut error = None;
 
         if let Some(chl_hdl) = dev_hdl.find_can(channel) {
-            self.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
+            self.reset_can_chl(chl_hdl)
+                .unwrap_or_else(|e| rsutil::warn!("{}", e));
             dev_hdl.remove_can(channel);
         }
 
         match self.start_channel(libpath, dev_hdl, channel, set_value_func, cfg) {
             Ok(context) => {
                 dev_hdl.add_can(channel, context);
-            },
+            }
             Err(e) => {
                 error = Some(e);
             }
@@ -94,17 +96,20 @@ impl USBCANEApi<'_> {
         dev_hdl: &mut Handler,
         channel: u8,
         set_value_func: SetValueFunc,
-        cfg: &ChannelConfig
+        cfg: &ChannelConfig,
     ) -> Result<ZChannelContext, CanError> {
         let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), channel);
         self.init_can_chl(libpath, &mut context, cfg)?; // ZCAN_InitCAN]
-        // self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
+                                                        // self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
         let (chl_hdl, channel) = (context.channel_handler()?, context.channel);
         self.set_channel(channel, set_value_func, cfg)?;
 
         match unsafe { (self.ZCAN_StartCAN)(chl_hdl) as u32 } {
             Self::STATUS_OK => Ok(context),
-            code => Err(CanError::InitializeError(format!("`ZCAN_StartCAN` ret: {}", code))),
+            code => Err(CanError::InitializeError(format!(
+                "`ZCAN_StartCAN` ret: {}",
+                code
+            ))),
         }
     }
 
@@ -112,7 +117,7 @@ impl USBCANEApi<'_> {
         &self,
         channel: u8,
         func: SetValueFunc,
-        cfg: &ChannelConfig
+        cfg: &ChannelConfig,
     ) -> Result<(), CanError> {
         unsafe {
             let func = func.ok_or(CanError::other_error("method not supported"))?;
@@ -122,7 +127,10 @@ impl USBCANEApi<'_> {
                 .map_err(|e| CanError::OtherError(e.to_string()))?;
             match func(cmd_path.as_ptr(), bitrate.as_ptr()) as u32 {
                 Self::STATUS_OK => Ok(()),
-                code => Err(CanError::OperationError(format!("{:?}, SetValue failed ret: {}", cmd_path, code))),
+                code => Err(CanError::OperationError(format!(
+                    "{:?}, SetValue failed ret: {}",
+                    cmd_path, code
+                ))),
             }?;
 
             let cmd_path = CString::new(channel_work_mode(channel))
@@ -130,22 +138,30 @@ impl USBCANEApi<'_> {
             let mode = CString::new(
                 (cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
                     .unwrap_or(ZCanChlMode::Normal) as u8)
-                    .to_string()
+                    .to_string(),
             )
-                .map_err(|e| CanError::OtherError(e.to_string()))?;
+            .map_err(|e| CanError::OtherError(e.to_string()))?;
             match func(cmd_path.as_ptr(), mode.as_ptr()) as u32 {
                 Self::STATUS_OK => Ok(()),
-                code => Err(CanError::OperationError(format!("{:?}, SetValue failed ret: {}", cmd_path, code))),
+                code => Err(CanError::OperationError(format!(
+                    "{:?}, SetValue failed ret: {}",
+                    cmd_path, code
+                ))),
             }
         }
     }
 
-    pub(crate) fn self_get_property(&self, context: &ZDeviceContext) -> Result<IProperty, CanError> {
+    pub(crate) fn self_get_property(
+        &self,
+        context: &ZDeviceContext,
+    ) -> Result<IProperty, CanError> {
         let ret = unsafe { (self.GetIProperty)(context.device_handler()?) };
         if ret.is_null() {
-            Err(CanError::OperationError(format!("`GetIProperty` ret: {}", 0)))
-        }
-        else {
+            Err(CanError::OperationError(format!(
+                "`GetIProperty` ret: {}",
+                0
+            )))
+        } else {
             unsafe { Ok(*ret) }
         }
     }
@@ -153,13 +169,13 @@ impl USBCANEApi<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::CString;
-    use dlopen2::symbor::{Library, SymBorApi};
+    use super::USBCANEApi;
     use crate::native::{
         constants::LOAD_LIB_FAILED,
-        device::{ZCanDeviceType, ZDeviceInfo}
+        device::{ZCanDeviceType, ZDeviceInfo},
     };
-    use super::USBCANEApi;
+    use dlopen2::symbor::{Library, SymBorApi};
+    use std::ffi::CString;
 
     #[test]
     fn usbcan_4e_u() -> anyhow::Result<()> {

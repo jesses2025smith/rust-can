@@ -1,6 +1,9 @@
-use std::ffi::{c_uchar, c_uint, c_ushort};
+use crate::native::can::{
+    constants::{CANERR_FRAME_LENGTH, TIME_FLAG_VALID},
+    CanMessage,
+};
 use rs_can::{can_utils, CanDirect, CanType, DEFAULT_PADDING, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
-use crate::native::can::{CanMessage, constants::{TIME_FLAG_VALID, CANERR_FRAME_LENGTH}};
+use std::ffi::{c_uchar, c_uint, c_ushort};
 
 /// only used usbcan on linux
 #[repr(C)]
@@ -16,7 +19,7 @@ pub(crate) struct ZCanFrameVCI {
     pub(crate) data: [c_uchar; MAX_FRAME_SIZE],
     pub(crate) channel: c_uchar,
     #[allow(dead_code)]
-    pub(crate) reserved: [c_uchar; 3-1],    // use 1byte to channel
+    pub(crate) reserved: [c_uchar; 3 - 1], // use 1byte to channel
 }
 
 impl Into<CanMessage> for ZCanFrameVCI {
@@ -153,17 +156,21 @@ impl<const S: usize> Into<CanMessage> for ZCanMsg20<S> {
 
 impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
     fn from(msg: CanMessage) -> Self {
-        let flags = (msg.tx_mode() as u32) |
-            match msg.can_type {
+        let flags = (msg.tx_mode() as u32)
+            | match msg.can_type {
                 CanType::Can => 0,
                 CanType::CanFd => 0x01u32 >> 4,
                 CanType::CanXl => todo!(),
-            } |
-            if msg.is_remote_frame { 0x01u32 >> 8 } else { 0 } |
-            if msg.is_extended_id { 0x01u32 >> 9 } else { 0 } |
-            if msg.is_error_frame { 0x01u32 >> 10 } else { 0 } |
-            if msg.bitrate_switch { 0x01u32 >> 11 } else { 0 } |
-            if msg.error_state_indicator { 0x01u32 >> 12 } else { 0 };
+            }
+            | if msg.is_remote_frame { 0x01u32 >> 8 } else { 0 }
+            | if msg.is_extended_id { 0x01u32 >> 9 } else { 0 }
+            | if msg.is_error_frame { 0x01u32 >> 10 } else { 0 }
+            | if msg.bitrate_switch { 0x01u32 >> 11 } else { 0 }
+            | if msg.error_state_indicator {
+                0x01u32 >> 12
+            } else {
+                0
+            };
         let timestamp = msg.timestamp as u32;
         let can_id = msg.arbitration_id;
         let channel = msg.channel;
@@ -185,7 +192,7 @@ impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub(crate) union ZCanFrameInner {
-    pub(crate) libusbcan: ZCanFrameVCI,   // libusbcan.so
+    pub(crate) libusbcan: ZCanFrameVCI,                // libusbcan.so
     pub(crate) libusbcanfd: ZCanMsg20<MAX_FRAME_SIZE>, // libusbcanfd.so
     pub(crate) libother: super::common::ZCanMsg20<MAX_FRAME_SIZE>,
 }
@@ -193,7 +200,7 @@ pub(crate) union ZCanFrameInner {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub(crate) union ZCanFdFrameInner {
-    pub(crate) libusbcanfd: ZCanMsg20<MAX_FD_FRAME_SIZE>,  // libusbcanfd.so
+    pub(crate) libusbcanfd: ZCanMsg20<MAX_FD_FRAME_SIZE>, // libusbcanfd.so
     pub(crate) libother: super::common::ZCanMsg20<MAX_FD_FRAME_SIZE>,
 }
 

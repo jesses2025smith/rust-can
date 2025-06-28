@@ -1,6 +1,6 @@
-use std::ffi::{c_uint, c_ulonglong};
+use crate::native::can::{frame::common::ZCanMsg20, CanMessage};
 use rs_can::{MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
-use crate::native::{can::{CanMessage, frame::common::ZCanMsg20}};
+use std::ffi::{c_uint, c_ulonglong};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
@@ -13,7 +13,7 @@ impl<const S: usize> From<CanMessage> for ZCanFrameTx<S> {
     fn from(msg: CanMessage) -> Self {
         let tx_mode = msg.tx_mode() as u32;
         let frame = msg.into();
-        Self { frame, tx_mode, }
+        Self { frame, tx_mode }
     }
 }
 
