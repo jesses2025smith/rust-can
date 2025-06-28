@@ -1,5 +1,5 @@
-use bitflags::bitflags;
 use crate::constants::{EFF_MASK, SFF_MASK};
+use bitflags::bitflags;
 
 bitflags! {
     /// Identifier flags for indicating various frame types.
@@ -26,7 +26,7 @@ bitflags! {
 pub struct Filter {
     pub can_id: u32,
     pub can_mask: u32,
-    pub extended: bool
+    pub extended: bool,
 }
 
 impl From<(u32, u32)> for Filter {
@@ -78,7 +78,7 @@ impl Id {
     pub fn from_bits(id: u32, force_extend: Option<bool>) -> Self {
         match force_extend {
             Some(true) => Self::Extended(id),
-            _ => Self::_from_bits(id)
+            _ => Self::_from_bits(id),
         }
     }
 
@@ -107,7 +107,7 @@ impl Id {
     pub fn standard_id(self) -> Self {
         match self {
             Self::Standard(_) => self,
-            Self::Extended(v) => Self::Standard((v >> 18) as u16),     // ID-28 to ID-18
+            Self::Extended(v) => Self::Standard((v >> 18) as u16), // ID-28 to ID-18
         }
     }
 
@@ -125,10 +125,12 @@ impl Id {
     #[inline]
     fn _from_bits(id: u32) -> Self {
         match id & IdentifierFlags::EXTENDED.bits() {
-            0 => if id > SFF_MASK {
-                Self::new_extended(id)
-            } else {
-                Self::new_standard(id as u16)
+            0 => {
+                if id > SFF_MASK {
+                    Self::new_extended(id)
+                } else {
+                    Self::new_standard(id as u16)
+                }
             }
             _ => Self::new_extended(id & EFF_MASK),
         }

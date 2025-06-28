@@ -1,8 +1,8 @@
 mod identifier;
 pub use identifier::*;
 
-use std::fmt::{Display, Formatter, Write};
 use crate::utils::can_dlc;
+use std::fmt::{Display, Formatter, Write};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -109,58 +109,65 @@ impl<T: Display> Display for dyn Frame<Channel = T> {
         let data_str = if self.is_remote() {
             " ".to_owned()
         } else {
-            self.data()
-                .iter()
-                .fold(String::new(), |mut out, &b| {
-                    let _ = write!(out, "{b:02x} ");
-                    out
-                })
+            self.data().iter().fold(String::new(), |mut out, &b| {
+                let _ = write!(out, "{b:02x} ");
+                out
+            })
         };
 
         match self.can_type() {
             Type::Can => {
-                write!(f, "{:.3} {} {}{: <4} {} {} {} {}",
-                       self.timestamp() as f64 / 1000.,
-                       self.channel(),
-                       format!("{: >8x}", self.id().into_bits()),
-                       if self.is_extended() { "x" } else { "" },
-                       self.direct(),
-                       // if self.is_rx() { "Rx" } else { "Tx" },
-                       if self.is_remote() { "r" } else { "d" },
-                       format!("{: >2}", self.length()),
-                       data_str,
+                write!(
+                    f,
+                    "{:.3} {} {}{: <4} {} {} {} {}",
+                    self.timestamp() as f64 / 1000.,
+                    self.channel(),
+                    format!("{: >8x}", self.id().into_bits()),
+                    if self.is_extended() { "x" } else { "" },
+                    self.direct(),
+                    // if self.is_rx() { "Rx" } else { "Tx" },
+                    if self.is_remote() { "r" } else { "d" },
+                    format!("{: >2}", self.length()),
+                    data_str,
                 )
-            },
+            }
             Type::CanFd => {
                 let mut flags = 1 << 12;
-                write!(f, "{:.3} CANFD {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
-                       self.timestamp() as f64 / 1000.,
-                       self.channel(),
-                       self.direct(),
-                       // if self.is_rx() { "Rx" } else { "Tx" },
-                       format!("{: >8x}", self.id().into_bits()),
-                       if self.is_bitrate_switch() {
-                           flags |= 1 << 13;
-                           1
-                       } else { 0 },
-                       if self.is_esi() {
-                           flags |= 1 << 14;
-                           1
-                       } else { 0 },
-                       format!("{: >2}", self.dlc()),
-                       format!("{: >2}", self.length()),
-                       data_str,
-                       format!("{: >8}", 0),       // message_duration
-                       format!("{: <4}", 0),       // message_length
-                       format!("{: >8x}", flags),
-                       format!("{: >8}", 0),       // crc
-                       format!("{: >8}", 0),       // bit_timing_conf_arb
-                       format!("{: >8}", 0),       // bit_timing_conf_data
-                       format!("{: >8}", 0),       // bit_timing_conf_ext_arb
-                       format!("{: >8}", 0),       // bit_timing_conf_ext_data
+                write!(
+                    f,
+                    "{:.3} CANFD {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
+                    self.timestamp() as f64 / 1000.,
+                    self.channel(),
+                    self.direct(),
+                    // if self.is_rx() { "Rx" } else { "Tx" },
+                    format!("{: >8x}", self.id().into_bits()),
+                    if self.is_bitrate_switch() {
+                        flags |= 1 << 13;
+                        1
+                    } else {
+                        0
+                    },
+                    if self.is_esi() {
+                        flags |= 1 << 14;
+                        1
+                    } else {
+                        0
+                    },
+                    format!("{: >2}", self.dlc()),
+                    format!("{: >2}", self.length()),
+                    data_str,
+                    format!("{: >8}", 0), // message_duration
+                    format!("{: <4}", 0), // message_length
+                    format!("{: >8x}", flags),
+                    format!("{: >8}", 0), // crc
+                    format!("{: >8}", 0), // bit_timing_conf_arb
+                    format!("{: >8}", 0), // bit_timing_conf_data
+                    format!("{: >8}", 0), // bit_timing_conf_ext_arb
+                    format!("{: >8}", 0), // bit_timing_conf_ext_data
                 )
-            },
-            Type::CanXl => {    // TODO
+            }
+            Type::CanXl => {
+                // TODO
                 write!(f, "CANXL Frame")
             }
         }

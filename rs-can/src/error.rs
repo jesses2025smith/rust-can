@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug,  Clone, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum Error {
     /// Error when operation like library loading, device or channel opening and so on.
     #[error("RUST-CAN - initialize error: {0}")]

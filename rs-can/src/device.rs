@@ -1,7 +1,14 @@
-use std::{any::{Any, type_name}, collections::HashMap, hash::Hash};
+use crate::{
+    error::Error,
+    frame::{Frame, Id},
+};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
-use crate::{error::Error, frame::{Frame, Id}};
+use std::{
+    any::{type_name, Any},
+    collections::HashMap,
+    hash::Hash,
+};
 
 #[cfg(not(feature = "async"))]
 pub type CanResult<R, E> = Result<R, E>;
@@ -30,7 +37,11 @@ pub trait Device: Clone + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
     /// Transmit a CAN or CAN-FD Frame.
     fn transmit(&self, msg: Self::Frame, timeout: Option<u32>) -> CanResult<(), Error>;
     /// Receive CAN and CAN-FD Frames.
-    fn receive(&self, channel: Self::Channel, timeout: Option<u32>) -> CanResult<Vec<Self::Frame>, Error>;
+    fn receive(
+        &self,
+        channel: Self::Channel,
+        timeout: Option<u32>,
+    ) -> CanResult<Vec<Self::Frame>, Error>;
     /// Close CAN device.
     fn shutdown(&mut self);
 }
@@ -109,15 +120,17 @@ impl<K: Hash + Eq + Default> DeviceBuilder<K> {
 #[inline(always)]
 fn get_other<T: Clone + 'static>(
     others: &HashMap<String, Box<dyn Any>>,
-    name: &str
+    name: &str,
 ) -> Result<Option<T>, Error> {
-    match others.get(name)  {
+    match others.get(name) {
         Some(v) => Ok(Some(
             v.downcast_ref::<T>()
-                .ok_or(Error::OtherError(
-                    format!("type mismatched for `{}` expected: `{}`", name, type_name::<T>())
-                ))?
-                .clone()
+                .ok_or(Error::OtherError(format!(
+                    "type mismatched for `{}` expected: `{}`",
+                    name,
+                    type_name::<T>()
+                )))?
+                .clone(),
         )),
         None => Ok(None),
     }
