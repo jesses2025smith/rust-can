@@ -101,15 +101,23 @@ impl ZCanChlCfg {
         cfg: &ChannelConfig,
     ) -> Result<Self, CanError> {
         if dev_type.canfd_support() {
-            let (aset, dset) = get_fd_set(cfg.bitrate(), cfg.dbitrate(), ctx)?;
+            let (timing0, timing1) = match dev_type {
+                ZCanDeviceType::ZCAN_USBCANFD_800U => {
+                    let (aset, dset) = get_fd_set(cfg.bitrate(), cfg.dbitrate(), ctx)?;
+                    let timing0 = aset.get_timing();    // 4458527 = 0x44081f
+                    let timing1 = dset.get_timing();    // 4260357 = 0x410205
+                    (timing0, timing1)
+                },
+                _ => (0, 0)
+            };
             Ok(Self {
                 can_type: can_type as u32,
                 cfg: ZCanChlCfgUnion {
                     canfd: common::ZCanFdChlCfgInner::new(
                         cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
                             .unwrap_or(ZCanChlMode::Normal),
-                        aset.get_timing(), // timing0 and timing1 ignored expect USBCANFD_800U
-                        dset.get_timing(),
+                        timing0, // timing0 and timing1 ignored expect USBCANFD_800U
+                        timing1,
                         cfg.get_other::<ZCanFilterType>(constants::FILTER_TYPE)?
                             .unwrap_or(ZCanFilterType::default()),
                         cfg.get_other::<u32>(constants::ACC_CODE)?,
