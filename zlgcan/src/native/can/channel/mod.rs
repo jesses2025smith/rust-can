@@ -111,7 +111,10 @@ impl ZCanChlCfg {
                 _ => (0, 0)
             };
             Ok(Self {
-                can_type: can_type as u32,
+                can_type: match can_type {
+                    ZCanChlType::CAN | ZCanChlType::CANFD_ISO => ZCanChlType::CANFD_ISO as u32,
+                    ZCanChlType::CANFD_NON_ISO => can_type as u32,
+                },
                 cfg: ZCanChlCfgUnion {
                     canfd: common::ZCanFdChlCfgInner::new(
                         cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
