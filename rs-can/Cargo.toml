@@ -13,12 +13,10 @@ keywords = [
 ]
 
 [dependencies]
-log = { workspace = true }
+async-trait = { workspace = true }
 bitflags = { workspace = true }
 derive-getters = { workspace = true }
+log = { workspace = true }
 rsutil = { workspace = true, features = ["log"] }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-
-[features]
-async = []

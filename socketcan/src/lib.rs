@@ -400,6 +400,7 @@ impl TryFrom<DeviceBuilder<String>> for SocketCan {
     }
 }
 
+#[async_trait::async_trait]
 impl CanDevice for SocketCan {
     type Channel = String;
     type Frame = CanMessage;
@@ -412,7 +413,7 @@ impl CanDevice for SocketCan {
     }
 
     #[inline(always)]
-    fn transmit(&self, msg: Self::Frame, timeout: Option<u32>) -> CanResult<(), CanError> {
+    async fn transmit(&self, msg: Self::Frame, timeout: Option<u32>) -> CanResult<(), CanError> {
         match timeout {
             Some(timeout) => self.write_timeout(msg, Duration::from_millis(timeout as u64)),
             None => self.write(msg),
@@ -420,7 +421,7 @@ impl CanDevice for SocketCan {
     }
 
     #[inline(always)]
-    fn receive(&self, channel: Self::Channel, timeout: Option<u32>) -> CanResult<Vec<Self::Frame>, CanError> {
+    async fn receive(&self, channel: Self::Channel, timeout: Option<u32>) -> CanResult<Vec<Self::Frame>, CanError> {
         let timeout = timeout.unwrap_or(0);
         let msg = self.read_timeout(&channel, Duration::from_millis(timeout as u64))?;
         Ok(vec![msg, ])

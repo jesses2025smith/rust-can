@@ -118,6 +118,7 @@ impl ZDriver {
     }
 }
 
+#[async_trait::async_trait]
 impl CanDevice for ZDriver {
     type Channel = u8;
     type Frame = CanMessage;
@@ -130,7 +131,7 @@ impl CanDevice for ZDriver {
         }
     }
 
-    fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
+    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
         let channel = msg.channel();
         let _ = match msg.can_type() {
             CanType::Can => self.transmit_can(channel, vec![msg]),
@@ -141,7 +142,7 @@ impl CanDevice for ZDriver {
         Ok(())
     }
 
-    fn receive(
+    async fn receive(
         &self,
         channel: Self::Channel,
         timeout: Option<u32>,

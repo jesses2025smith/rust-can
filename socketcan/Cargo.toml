@@ -17,6 +17,7 @@ keywords = [
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
+async-trait = { workspace = true }
 libc = "0.2"
 log = { workspace = true }
 nix = { version="0.30", features = ["poll", "process", "net"] }
@@ -25,3 +26,4 @@ rsutil = { workspace = true, features = ["log"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

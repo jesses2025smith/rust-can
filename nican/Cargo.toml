@@ -13,6 +13,7 @@ crate-type = ["lib", "cdylib"]
 name = "nican_rs"
 
 [dependencies]
+async-trait = { workspace = true }
 log = { workspace = true }
 rsutil = { workspace = true, features = ["log"] }
 rs-can = { workspace = true }
@@ -20,6 +21,7 @@ winapi = { version = "0.3", features = ["errhandlingapi", "libloaderapi", "winnt
 
 [dev-dependencies]
 anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 #[build-dependencies]
 #bindgen = "0.71"

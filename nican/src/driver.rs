@@ -393,6 +393,7 @@ impl TryFrom<DeviceBuilder<String>> for NiCan {
     }
 }
 
+#[async_trait::async_trait]
 impl CanDevice for NiCan {
     type Channel = String;
     type Frame = CanMessage;
@@ -408,12 +409,12 @@ impl CanDevice for NiCan {
     }
 
     #[inline]
-    fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
+    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
         self.transmit_can(msg)
     }
 
     #[inline]
-    fn receive(
+    async fn receive(
         &self,
         channel: Self::Channel,
         timeout: Option<u32>,
@@ -448,8 +449,8 @@ mod tests {
     // use rs_can::isotp::IsoTpAdapter;
 
     #[ignore] // device required
-    #[test]
-    fn api() -> anyhow::Result<()> {
+    #[tokio::test]
+    async fn api() -> anyhow::Result<()> {
         let channel = "CAN0";
         let mut driver = NiCan::new(None)?;
         driver.open(channel, vec![], 500_000, true)?;
@@ -459,10 +460,10 @@ mod tests {
         loop {
             let mut msg = CanMessage::new(CanId::from(0x7DF), data.as_slice()).unwrap();
             msg.set_channel(channel.into());
-            driver.transmit(msg, None)?;
+            driver.transmit(msg, None).await?;
 
             std::thread::sleep(Duration::from_millis(5));
-            if let Ok(recv) = driver.receive(channel.into(), Some(10)) {
+            if let Ok(recv) = driver.receive(channel.into(), Some(10)).await {
                 recv.into_iter().for_each(|msg| println!("{}", msg));
             }
             std::thread::sleep(Duration::from_millis(100));
