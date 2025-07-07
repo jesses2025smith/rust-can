@@ -1,4 +1,6 @@
-use rs_can::{{CanDirect, CanFrame, CanId}, can_utils, CanType};
+use rs_can::{
+    can_utils, CanType, {CanDirect, CanFrame, CanId},
+};
 use std::fmt::{Display, Formatter};
 
 #[repr(C)]

@@ -92,6 +92,10 @@
 #define ZCAN_ZPSCANFD_USB         79
 #define ZCAN_CANFDBRIDGE_PLUS     80
 #define ZCAN_CANFDDTU_300U        81
+#define ZCAN_PCIE_CANFD_800U      82
+#define ZCAN_PCIE_CANFD_1200U     83
+#define ZCAN_MINI_PCIE_CANFD      84
+#define ZCAN_USBCANFD_800H        85
 
 #define ZCAN_OFFLINE_DEVICE 98
 #define ZCAN_VIRTUAL_DEVICE 99
@@ -132,8 +136,8 @@ typedef UINT ZCAN_RET_STATUS;
 #define STATUS_BUFFER_TOO_SMALL 5
 
 typedef UINT ZCAN_LAST_ERROR_STATUS;
-//#define STATUS_NO_ERR                       0
-//#define STATUS_NO_ERR                       1
+// #define STATUS_NO_ERR                       0
+// #define STATUS_NO_ERR                       1
 
 typedef UINT ZCAN_UDS_DATA_DEF;
 #define DEF_CAN_UDS_DATA  1  // CAN/CANFD UDS数据
@@ -263,6 +267,28 @@ typedef struct tagZCAN_DEVICE_INFO {
     UCHAR  str_hw_Type[40];
     USHORT reserved[4];
 } ZCAN_DEVICE_INFO;
+
+typedef struct tagZCAN_VERSION {
+    BYTE major_version;
+    BYTE minor_version;
+    BYTE patch_version;
+    BYTE reserved;
+} ZCAN_VERSION;
+
+// device_info_version: V1.0.0
+typedef struct tagZCAN_DEVICE_INFO_EX {
+    ZCAN_VERSION hardware_version;  // 硬件版本
+    ZCAN_VERSION firmware_version;  // 固件版本
+    ZCAN_VERSION driver_version;    // 驱动版本
+    ZCAN_VERSION library_version;   // 动态库版本
+    UCHAR        device_name[128];
+    UCHAR        hardware_type[40];
+    UCHAR        serial_number[20];
+    BYTE         can_channel_number;
+    BYTE         lin_channel_number;
+    BYTE         reserved[46];
+    ZCAN_VERSION device_info_version;
+} ZCAN_DEVICE_INFO_EX;
 
 typedef struct tagZCAN_CHANNEL_INIT_CONFIG {
     UINT can_type;  // type:TYPE_CAN
@@ -599,6 +625,7 @@ typedef BYTE ZCAN_LIN_EVENT_TYPE;
 #define ZCAN_LIN_WAKE_UP            1
 #define ZCAN_LIN_ENTERED_SLEEP_MODE 2
 #define ZCAN_LIN_EXITED_SLEEP_MODE  3
+#define ZCAN_LIN_SWITCH_SCHED       4
 
 typedef struct tagZCANLINEventData {
     UINT64              timeStamp;  // 时间戳，单位微秒(us)
@@ -955,6 +982,7 @@ extern "C" {
 DEVICE_HANDLE FUNC_CALL ZCAN_OpenDevice(UINT device_type, UINT device_index, UINT reserved);
 UINT FUNC_CALL          ZCAN_CloseDevice(DEVICE_HANDLE device_handle);
 UINT FUNC_CALL          ZCAN_GetDeviceInf(DEVICE_HANDLE device_handle, ZCAN_DEVICE_INFO *pInfo);
+UINT FUNC_CALL          ZCAN_GetDeviceInfoEx(DEVICE_HANDLE device_handle, ZCAN_DEVICE_INFO_EX *pInfo);
 
 UINT FUNC_CALL ZCAN_IsDeviceOnLine(DEVICE_HANDLE device_handle);
 
@@ -1061,6 +1089,126 @@ ZCAN_RET_STATUS FUNC_CALL ZCAN_UDS_ControlEX(DEVICE_HANDLE device_handle, ZCAN_U
 /*已弃用*/
 UINT FUNC_CALL ZCAN_SetLINSlaveMsg(CHANNEL_HANDLE channel_handle, PZCAN_LIN_MSG pSend, UINT nMsgCount);
 UINT FUNC_CALL ZCAN_ClearLINSlaveMsg(CHANNEL_HANDLE channel_handle, BYTE *pLINID, UINT nIDCount);
+
+// LIN调度表状态
+typedef UINT ZCAN_LIN_SCHED_STATUS;
+#define ZCAN_LIN_SCHED_STATUS_IDLE 0  // 空闲
+#define ZCAN_LIN_SCHED_STATUS_RUN  1  // 正在运行
+
+// LIN帧类型
+typedef BYTE ZCAN_LIN_FRAME_TYPE;
+#define ZCAN_LIN_FRAME_UNCONDITIONAL 0  // 无条件帧
+#define ZCAN_LIN_FRAME_EVENT         1  // 事件触发帧
+#define ZCAN_LIN_FRAME_SPORADIC      2  // 偶发帧
+#define ZCAN_LIN_FRAME_MST_REQ       3  // 诊断主机请求帧
+#define ZCAN_LIN_FRAME_SLV_RESP      4  // 诊断从机应答帧
+#define ZCAN_LIN_FRAME_RESERVED      5  // 保留帧
+
+typedef UINT ZCAN_LIN_SCHED_HANDLE;
+#define INVALID_LIN_SCHED_HANDLE ((ZCAN_LIN_SCHED_HANDLE)(-1))
+
+typedef struct _ZCAN_LIN_SCHED_ITEM {
+    ZCAN_LIN_FRAME_TYPE type;          // 帧类型
+    BYTE                reserved1[3];  // 保留
+    UINT                slot;          // 帧时隙(单位ms)
+    ZCAN_LIN_SCHED_HANDLE
+    resolve_handle;  // 冲突解决调度表句柄（该参数仅当前帧类型为事件触发帧有效）是否要将该参数放入事件触发帧的结构体内？
+
+    union {
+        BYTE id;  // 无条件帧、诊断主机请求帧、诊断从机应答帧、保留帧的id
+        struct {
+            BYTE spor_related_id[16];  // 偶发帧关联的id列表，索引0为最高优先级，依次递减
+            BYTE spor_count;           // 偶发帧的关联的id个数
+        } sporadic_id;
+        struct {
+            BYTE event_id;              // 事件触发帧的id
+            BYTE event_related_id[16];  // 事件触发帧关联的无条件帧id列表
+            BYTE event_count;           // 事件触发帧关联的无条件帧的id个数
+        } event_id;
+    } ids;
+    BYTE reserved2[2];  // 保留
+} ZCAN_LIN_SCHED_ITEM;
+
+/**
+ * @brief LIN调度表创建
+ * @param[in] channel_handle 设备句柄
+ * @param[in] items 调度表中帧信息数组
+ * @param[in] count 调度表中帧的个数
+ * @return 调度表句柄, 返回INVALID_LIN_SCHED_HANDLE为无效
+ */
+ZCAN_LIN_SCHED_HANDLE FUNC_CALL ZCAN_CreateLINSchedule(DEVICE_HANDLE device_handle, ZCAN_LIN_SCHED_ITEM *items,
+                                                       UINT count);
+
+/**
+ * @brief 删除LIN调度表
+ * @param[in] device_handle 设备句柄
+ * @param[in] sched_handle 调度表句柄
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_DestroyLINSchedule(DEVICE_HANDLE device_handle, ZCAN_LIN_SCHED_HANDLE sched_handle);
+
+/**
+ * @brief 添加LIN调度表到通道
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_handle 调度表句柄
+ * @param[in] running_cnt 运行次数，0为一直运行
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_AddLINSchedule(CHANNEL_HANDLE channel_handle, ZCAN_LIN_SCHED_HANDLE sched_handle,
+                                              UINT running_cnt);
+
+/**
+ * @brief 清空LIN调度表
+ * @param[in] channel_handle 通道句柄
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_ClrLINSchedule(CHANNEL_HANDLE channel_handle);
+
+/**
+ * @brief 设置调度表使能状态
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_handle 调度表句柄
+ * @param[in] enabled 调度表使能，默认使能
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_SetLINScheduleEnabled(CHANNEL_HANDLE channel_handle, ZCAN_LIN_SCHED_HANDLE sched_handle,
+                                                     UINT enabled);
+
+/**
+ * @brief 设置调度表表项使能状态
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_handle 调度表句柄
+ * @param[in] idx 调度表表项索引
+ * @param[in] enabled 表项使能，默认使能
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_SetLINScheduleItemEnabled(CHANNEL_HANDLE        channel_handle,
+                                                         ZCAN_LIN_SCHED_HANDLE sched_handle, UINT idx, UINT enabled);
+
+/**
+ * @brief 获取LIN调度表状态信息
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_handle 调度表句柄
+ * @param[out] status 调度表状态信息
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_GetLINScheduleStatus(CHANNEL_HANDLE channel_handle, ZCAN_LIN_SCHED_HANDLE sched_handle,
+                                                    ZCAN_LIN_SCHED_STATUS *status);
+
+/**
+ * @brief 启动LIN通道调度表
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_handle 调度表句柄
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_StartLINSchedule(CHANNEL_HANDLE channel_handle);
+
+/**
+ * @brief 停止LIN通道调度表
+ * @param[in] channel_handle 通道句柄
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_StopLINSchedule(CHANNEL_HANDLE channel_handle);
 
 #ifdef __cplusplus
 }

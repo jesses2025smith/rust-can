@@ -1,5 +1,5 @@
 [![Latest version](https://img.shields.io/crates/v/socketcan-rs.svg)](https://crates.io/crates/socketcan-rs)
-[![Documentation](https://docs.rs/bleasy/badge.svg)](https://docs.rs/socketcan-rs)
+[![Documentation](https://docs.rs/socketcan-rs/badge.svg)](https://docs.rs/socketcan-rs)
 ![LGPL](https://img.shields.io/badge/license-LGPL-green.svg)
 ![MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
 

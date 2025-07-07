@@ -1,6 +1,6 @@
-use std::time::Duration;
 use nican_rs::{CanMessage, NiCan};
 use rs_can::{CanDevice, CanFrame, CanId, ChannelConfig, DeviceBuilder};
+use std::time::Duration;
 
 fn main() -> anyhow::Result<()> {
     let channel = "CAN0";
@@ -17,8 +17,7 @@ fn main() -> anyhow::Result<()> {
 
         std::thread::sleep(Duration::from_millis(5));
         if let Ok(recv) = device.receive(channel.into(), Some(10)) {
-            recv.into_iter()
-                .for_each(|msg| println!("{}", msg));
+            recv.into_iter().for_each(|msg| println!("{}", msg));
         }
         std::thread::sleep(Duration::from_millis(100));
 
@@ -32,5 +31,3 @@ fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

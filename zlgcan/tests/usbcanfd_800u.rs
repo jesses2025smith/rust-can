@@ -1,7 +1,7 @@
 mod utils;
 
-use zlgcan_rs::device::ZCanDeviceType;
 use self::utils::{canfd_device2, device_open};
+use zlgcan_rs::device::ZCanDeviceType;
 
 #[test]
 fn usbcanfd_800u() -> anyhow::Result<()> {

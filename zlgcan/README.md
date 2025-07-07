@@ -1,5 +1,5 @@
 [![Latest version](https://img.shields.io/crates/v/zlgcan.svg)](https://crates.io/crates/zlgcan)
-[![Documentation](https://docs.rs/bleasy/badge.svg)](https://docs.rs/zlgcan)
+[![Documentation](https://docs.rs/zlgcan/badge.svg)](https://docs.rs/zlgcan)
 ![LGPL](https://img.shields.io/badge/license-LGPL-green.svg)
 ![MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
 ![Downloads](https://img.shields.io/crates/d/zlgcan)
@@ -27,27 +27,27 @@
 
 ```rust
 use rs_can::{CanError, DeviceBuilder, ChannelConfig};
-use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType}, device::ZCanDeviceType, driver::{ZDevice, ZCanDriver}, CHANNEL_MODE, CHANNEL_TYPE, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
+use zlgcan_rs::{can::{ZCanChlMode, ZCanChlType}, device::ZCanDeviceType, driver::{ZDevice, ZDriver}, CHANNEL_MODE, CHANNEL_TYPE, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
 
 fn main() -> Result<(), CanError> {
     let mut builder = DeviceBuilder::new();
 
     let mut ch1_cfg = ChannelConfig::new(500_000);
-    ch1_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8))
-        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN as u8));
+    ch1_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal))
+        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN));
 
     let mut ch2_cfg = ChannelConfig::new(500_000);
-    ch2_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8))
-        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN as u8));
+    ch2_cfg.add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal))
+        .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CAN));
 
     builder
         .add_other(LIBPATH, Box::new("library".to_string()))
-        .add_other(DEVICE_TYPE, Box::new(ZCanDeviceType::ZCAN_USBCANFD_200U as u32))
+        .add_other(DEVICE_TYPE, Box::new(ZCanDeviceType::ZCAN_USBCANFD_200U))
         .add_other(DEVICE_INDEX, Box::new(0))
-        .add_config(0.to_string(), ch1_cfg)
-        .add_config(1.to_string(), ch2_cfg);
+        .add_config(0, ch1_cfg)
+        .add_config(1, ch2_cfg);
 
-    let device = builder.build::<ZCanDriver>()?;
+    let device = builder.build::<ZDriver>()?;
     // todo something
 
     Ok(())

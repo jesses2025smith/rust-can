@@ -491,6 +491,22 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x002E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x002F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
 		</channel_0>
 	</channel>
 </info>

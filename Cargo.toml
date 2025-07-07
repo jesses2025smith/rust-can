@@ -13,23 +13,29 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR GPL-3.0"
 authors = ["Jesse Smith <jesses2025smith@gmail.com>"]
 repository = "https://github.com/jesses2025smith/rust-can"
 
 [workspace.dependencies]
-bitflags = "2.6"
+anyhow = "1"
+async-trait = "0.1"
+bitflags = "2.9"
 derive-getters = "0.5"
-dlopen2 = "0.7"
-log = "0"
+dlopen2 = "0.8"
+log = "0.4"
+rand = "0.9"
+rs-can = { path = "rs-can", version = "0.3.0" }
+rsutil = "0.1"
 serde = "1.0"
 serde_yaml = "0.9"
 thiserror = "2"
+tokio = "1"
 
-rs-can = { path = "rs-can", version = "0.2.2" }
+[workspace.'cfg(target_os = "linux")'.dependencies]
+socketcan = { path = "socketcan" }
 
-# dev-dependencies
-anyhow = "1"
-rand = "0.9"
+[workspace.'cfg(target_os = "windows", target_arch = "x86")'.dependencies]
+nican = { path = "nican" }

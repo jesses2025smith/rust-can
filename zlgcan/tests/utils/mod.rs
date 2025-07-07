@@ -1,14 +1,19 @@
-use std::thread;
-use std::time::{Duration, SystemTime};
-use rand::{Rng, rng, prelude::ThreadRng};
-use rs_can::{CanError, CanFrame, CanId, ChannelConfig, DeviceBuilder, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
-use zlgcan_rs::{can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode}, device::{DeriveInfo, ZCanDeviceType}, driver::{ZCanDriver, ZDevice}, CHANNEL_MODE, CHANNEL_TYPE, DERIVE_INFO, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
+use rand::{prelude::ThreadRng, rng, Rng};
+use rs_can::{
+    CanError, CanFrame, CanId, ChannelConfig, DeviceBuilder, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
+};
+use std::{time::{Duration, SystemTime}, thread};
+use zlgcan_rs::{
+    can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode},
+    device::{DeriveInfo, ZCanDeviceType},
+    driver::{ZCan, ZDevice, ZDriver},
+    CHANNEL_MODE, CHANNEL_TYPE, DERIVE_INFO, DEVICE_INDEX, DEVICE_TYPE, LIBPATH,
+};
 
 fn generate_can_id(rng: &mut ThreadRng, extend: bool) -> u32 {
     if extend {
         rng.random_range(0x800..0x1FFF_FFFF)
-    }
-    else {
+    } else {
         rng.random_range(0..0x7FF)
     }
 }
@@ -18,17 +23,29 @@ fn generate_data(rng: &mut ThreadRng, size: usize) -> Vec<u8> {
     (1..len).map(|i| (i + 1) as u8).collect()
 }
 
-fn new_messages(size: u32, canfd: bool, extend: bool, brs: Option<bool>) -> anyhow::Result<Vec<CanMessage>> {
+fn new_messages(
+    size: u32,
+    canfd: bool,
+    extend: bool,
+    brs: Option<bool>,
+) -> anyhow::Result<Vec<CanMessage>> {
     let mut rng = rng();
-    let  mut frames = Vec::new();
+    let mut frames = Vec::new();
     for _ in 0..size {
         let id = CanId::from_bits(generate_can_id(&mut rng, extend), Some(extend));
 
-        let data = generate_data(&mut rng, if canfd { MAX_FD_FRAME_SIZE } else { MAX_FRAME_SIZE });
+        let data = generate_data(
+            &mut rng,
+            if canfd {
+                MAX_FD_FRAME_SIZE
+            } else {
+                MAX_FRAME_SIZE
+            },
+        );
         let mut frame = CanMessage::new(id, data.as_slice())
             .ok_or(CanError::OtherError("invalid data length".to_string()))?;
         frame.set_timestamp(None);
-        frame.set_tx_mode(ZCanTxMode::Normal as u8);
+        frame.set_tx_mode(ZCanTxMode::Normal);
 
         if canfd {
             frame.set_bitrate_switch(brs.unwrap_or_default());
@@ -47,11 +64,11 @@ pub fn device_open(
     channels: u8,
     available: u8,
     canfd: bool,
-) -> anyhow::Result<ZCanDriver> {
+) -> anyhow::Result<ZDriver> {
     let mut builder = DeviceBuilder::new();
     builder
         .add_other(LIBPATH, Box::new("library/".to_string()))
-        .add_other(DEVICE_TYPE, Box::new(dev_type as u32))
+        .add_other(DEVICE_TYPE, Box::new(dev_type))
         .add_other(DEVICE_INDEX, Box::new(dev_idx));
     if let Some(derive_info) = derive_info {
         builder.add_other(DERIVE_INFO, Box::new(derive_info));
@@ -59,12 +76,12 @@ pub fn device_open(
 
     for i in 0..available {
         let mut cfg = ChannelConfig::new(500_000);
-        cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO as u8))
-            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8));
-        builder.add_config(i.to_string(), cfg);
+        cfg.add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO))
+            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
+        builder.add_config(i, cfg);
     }
 
-    let device = builder.build::<ZCanDriver>()?;
+    let device = builder.build::<ZDriver>()?;
 
     let dev_info = device.device_info()?;
     assert_eq!(dev_info.can_channels(), channels);
@@ -73,7 +90,13 @@ pub fn device_open(
     Ok(device)
 }
 
-fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+fn transmit_can(
+    driver: &ZDriver,
+    comm_count: u32,
+    ext_count: u32,
+    trans_ch: u8,
+    recv_ch: u8,
+) -> anyhow::Result<()> {
     let frames1 = new_messages(comm_count, false, false, None)?;
     let frames2 = new_messages(ext_count, false, true, None)?;
     // create CAN frames
@@ -116,7 +139,14 @@ fn transmit_can(driver: &ZCanDriver, comm_count: u32, ext_count: u32, trans_ch: 
     Ok(())
 }
 
-fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_count: u32, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+fn transmit_canfd(
+    driver: &ZDriver,
+    comm_count: u32,
+    ext_count: u32,
+    brs_count: u32,
+    trans_ch: u8,
+    recv_ch: u8,
+) -> anyhow::Result<()> {
     let frames1 = new_messages(comm_count, true, false, None)?;
     let frames2 = new_messages(ext_count, true, true, None)?;
     let frames3 = new_messages(brs_count, true, false, Some(true))?;
@@ -174,7 +204,8 @@ fn transmit_canfd(driver: &ZCanDriver, comm_count: u32, ext_count: u32, brs_coun
     Ok(())
 }
 
-pub fn can_device1(driver: &mut ZCanDriver) -> anyhow::Result<()> {
+#[allow(dead_code)]
+pub fn can_device1(driver: &mut ZDriver) -> anyhow::Result<()> {
     let trans_ch = 0;
     let recv_ch = 0;
     let comm_count = 5;
@@ -186,7 +217,8 @@ pub fn can_device1(driver: &mut ZCanDriver) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn can_device2(driver: &mut ZCanDriver, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+#[allow(dead_code)]
+pub fn can_device2(driver: &mut ZDriver, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
     let comm_count = 5;
     let ext_count = 5;
 
@@ -196,7 +228,13 @@ pub fn can_device2(driver: &mut ZCanDriver, trans_ch: u8, recv_ch: u8) -> anyhow
     Ok(())
 }
 
-pub fn canfd_device2(driver: &mut ZCanDriver, available: u8, trans_ch: u8, recv_ch: u8) -> anyhow::Result<()> {
+#[allow(dead_code)]
+pub fn canfd_device2(
+    driver: &mut ZDriver,
+    available: u8,
+    trans_ch: u8,
+    recv_ch: u8,
+) -> anyhow::Result<()> {
     let comm_count = 5;
     let ext_count = 5;
     let brs_count = 5;
@@ -208,8 +246,8 @@ pub fn canfd_device2(driver: &mut ZCanDriver, available: u8, trans_ch: u8, recv_
     for i in 0..available {
         let mut cfg = ChannelConfig::new(500_000);
         cfg.set_data_bitrate(1_000_000)
-            .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO as u8))
-            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal as u8));
+            .add_other(CHANNEL_TYPE, Box::new(ZCanChlType::CANFD_ISO))
+            .add_other(CHANNEL_MODE, Box::new(ZCanChlMode::Normal));
         driver.init_can_chl(i, &cfg)?;
     }
     transmit_canfd(&driver, comm_count, ext_count, brs_count, trans_ch, recv_ch)?;
@@ -226,39 +264,31 @@ mod tests {
     fn test_utils() -> anyhow::Result<()> {
         let size = 2;
         let messages = new_messages(size, false, false, None)?;
-        messages.iter()
-            .for_each(|msg| {
-                println!("{}", msg);
-            });
+        messages.iter().for_each(|msg| {
+            println!("{}", msg);
+        });
         let messages = new_messages(size, false, true, None)?;
-        messages.iter()
-            .for_each(|msg| {
-                println!("{}", msg);
-            });
+        messages.iter().for_each(|msg| {
+            println!("{}", msg);
+        });
 
         let messages = new_messages(size, true, false, Some(false))?;
-        messages.iter()
-            .for_each(|msg| {
-                println!("{}", msg);
-            });
+        messages.iter().for_each(|msg| {
+            println!("{}", msg);
+        });
         let messages = new_messages(size, true, true, Some(false))?;
-        messages.iter()
-            .for_each(|msg| {
-                println!("{}", msg);
-            });
+        messages.iter().for_each(|msg| {
+            println!("{}", msg);
+        });
         let messages = new_messages(size, true, false, Some(true))?;
-        messages.iter()
-            .for_each(|msg| {
-                println!("{}", msg);
-            });
+        messages.iter().for_each(|msg| {
+            println!("{}", msg);
+        });
         let messages = new_messages(size, true, true, Some(true))?;
-        messages.iter()
-            .for_each(|msg| {
-                println!("{}", msg);
-            });
+        messages.iter().for_each(|msg| {
+            println!("{}", msg);
+        });
 
         Ok(())
     }
 }
-
-

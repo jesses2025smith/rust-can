@@ -1,7 +1,7 @@
 mod utils;
 
-use zlgcan_rs::device::{DeriveInfo, ZCanDeviceType};
 use self::utils::{can_device1, can_device2, device_open};
+use zlgcan_rs::device::{DeriveInfo, ZCanDeviceType};
 
 #[test]
 fn usbcan_official1() -> anyhow::Result<()> {
@@ -21,8 +21,16 @@ fn usbcan_derive1() -> anyhow::Result<()> {
     let channels = 1;
     let available = 1;
     let canfd = false;
-    let derive_info = DeriveInfo::new(canfd, channels);
-    let mut driver = device_open(dev_type, dev_idx, Some(derive_info), channels, available, canfd)?;
+
+    let derive_info = DeriveInfo { canfd, channels };
+    let mut driver = device_open(
+        dev_type,
+        dev_idx,
+        Some(derive_info),
+        channels,
+        available,
+        canfd,
+    )?;
     can_device1(&mut driver)?;
     Ok(())
 }
@@ -40,9 +48,15 @@ fn usbcan_derive2() -> anyhow::Result<()> {
     let available = 2;
     let canfd = false;
 
-    let derive_info = DeriveInfo::new(canfd, 2);
-    let mut driver = device_open(dev_type, dev_idx, Some(derive_info), channels, available, canfd)?;
+    let derive_info = DeriveInfo { canfd, channels };
+    let mut driver = device_open(
+        dev_type,
+        dev_idx,
+        Some(derive_info),
+        channels,
+        available,
+        canfd,
+    )?;
     can_device2(&mut driver, 0, 1)?;
     Ok(())
 }
-

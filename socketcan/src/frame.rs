@@ -14,11 +14,11 @@ pub enum CanAnyFrame {
 impl CanAnyFrame {
     pub fn size(&self) -> usize {
         match self {
-            CanAnyFrame::Normal(_) => FRAME_SIZE,
-            CanAnyFrame::Remote(_) => FRAME_SIZE,
-            CanAnyFrame::Error(_) => FRAME_SIZE,
-            CanAnyFrame::Fd(_) => FD_FRAME_SIZE,
-            CanAnyFrame::Xl(_) => XL_FRAME_SIZE,
+            Self::Normal(_) => FRAME_SIZE,
+            Self::Remote(_) => FRAME_SIZE,
+            Self::Error(_) => FRAME_SIZE,
+            Self::Fd(_) => FD_FRAME_SIZE,
+            Self::Xl(_) => XL_FRAME_SIZE,
         }
     }
 }
@@ -28,13 +28,13 @@ impl From<can_frame> for CanAnyFrame {
     fn from(frame: can_frame) -> CanAnyFrame {
         let can_id = frame.can_id;
         if can_id & IdentifierFlags::REMOTE.bits() != 0 {
-            CanAnyFrame::Remote(frame)
+            Self::Remote(frame)
         }
         else if can_id & IdentifierFlags::ERROR.bits() != 0 {
-            CanAnyFrame::Error(frame)
+            Self::Error(frame)
         }
         else {
-            CanAnyFrame::Normal(frame)
+            Self::Normal(frame)
         }
     }
 }
@@ -42,13 +42,13 @@ impl From<can_frame> for CanAnyFrame {
 impl From<canfd_frame> for CanAnyFrame {
     #[inline(always)]
     fn from(frame: canfd_frame) -> Self {
-        CanAnyFrame::Fd(frame)
+        Self::Fd(frame)
     }
 }
 
 impl From<canxl_frame> for CanAnyFrame {
     fn from(frame: canxl_frame) -> Self {
-        CanAnyFrame::Xl(frame)
+        Self::Xl(frame)
     }
 }
 
@@ -267,15 +267,15 @@ impl CanFrame for CanMessage {
     fn set_can_type(&mut self, r#type: CanType) -> &mut Self {
         match r#type {
             CanType::Can => if self.length > MAX_FRAME_SIZE {
-                log::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
+                rsutil::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
                 self.length = MAX_FRAME_SIZE;
             },
             CanType::CanFd => if self.length > MAX_FD_FRAME_SIZE {
-                log::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
+                rsutil::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
                 self.length = MAX_FD_FRAME_SIZE;
             },
             CanType::CanXl => if self.length > MAX_XL_FRAME_SIZE {
-                log::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
+                rsutil::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
                 self.length = MAX_XL_FRAME_SIZE;
             },
         }

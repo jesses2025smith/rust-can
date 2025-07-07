@@ -1,27 +1,36 @@
-use std::{any::{Any, type_name}, collections::HashMap, fmt::Display};
+use crate::{
+    error::Error,
+    frame::{Frame, Id},
+};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
-use crate::error::Error;
-use crate::frame::{Frame, Id};
+use std::{
+    any::{type_name, Any},
+    collections::HashMap,
+    hash::Hash,
+};
 
-#[cfg(not(feature = "async"))]
 pub type CanResult<R, E> = Result<R, E>;
-#[cfg(feature = "async")]
-pub type CanResult<R, E> = impl std::future::Future<Output = Result<R, E>>;
 
-pub trait Listener<C, F: Frame>: Send {
+#[async_trait::async_trait]
+pub trait Listener<C, F>: Send + Sync
+where
+    C: Send + Sync,
+    F: Frame
+{
     fn as_any(&self) -> &dyn Any;
     /// Callback when frame transmitting.
-    fn on_frame_transmitting(&self, channel: C, frame: &F);
+    async fn on_frame_transmitting(&self, channel: C, frame: &F);
     /// Callback when frame transmit success.
-    fn on_frame_transmitted(&self, channel: C, id: Id);
+    async fn on_frame_transmitted(&self, channel: C, id: Id);
     /// Callback when frames received.
-    fn on_frame_received(&self, channel: C, frames: &[F]);
+    async fn on_frame_received(&self, channel: C, frames: &[F]);
 }
 
-pub trait Device: Clone + TryFrom<DeviceBuilder, Error = Error> {
-    type Channel: Display;
-    type Frame: Frame<Channel = Self::Channel>;
+#[async_trait::async_trait]
+pub trait Device: Clone + Send + Sync + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
+    type Channel: Hash + Eq + Send + Sync + 'static;
+    type Frame: Frame<Channel = Self::Channel> + Send + Sync;
     #[inline]
     fn is_closed(&self) -> bool {
         self.opened_channels().is_empty()
@@ -29,9 +38,13 @@ pub trait Device: Clone + TryFrom<DeviceBuilder, Error = Error> {
     /// get all channels that has opened
     fn opened_channels(&self) -> Vec<Self::Channel>;
     /// Transmit a CAN or CAN-FD Frame.
-    fn transmit(&self, msg: Self::Frame, timeout: Option<u32>) -> CanResult<(), Error>;
+    async fn transmit(&self, msg: Self::Frame, timeout: Option<u32>) -> CanResult<(), Error>;
     /// Receive CAN and CAN-FD Frames.
-    fn receive(&self, channel: Self::Channel, timeout: Option<u32>) -> CanResult<Vec<Self::Frame>, Error>;
+    async fn receive(
+        &self,
+        channel: Self::Channel,
+        timeout: Option<u32>,
+    ) -> CanResult<Vec<Self::Frame>, Error>;
     /// Close CAN device.
     fn shutdown(&mut self);
 }
@@ -77,18 +90,18 @@ impl ChannelConfig {
 }
 
 #[derive(Debug, Default, Getters)]
-pub struct DeviceBuilder {
+pub struct DeviceBuilder<K: Hash + Eq> {
     #[getter(rename = "channel_configs")]
-    configs: HashMap<String, ChannelConfig>,
+    configs: HashMap<K, ChannelConfig>,
     others: HashMap<String, Box<dyn Any>>,
 }
 
-impl DeviceBuilder {
+impl<K: Hash + Eq + Default> DeviceBuilder<K> {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn add_config<S: Into<String>>(&mut self, channel: S, cfg: ChannelConfig) -> &mut Self {
+    pub fn add_config(&mut self, channel: K, cfg: ChannelConfig) -> &mut Self {
         self.configs.insert(channel.into(), cfg);
         self
     }
@@ -102,7 +115,7 @@ impl DeviceBuilder {
         get_other(&self.others, name)
     }
 
-    pub fn build<T: Device>(self) -> Result<T, Error> {
+    pub fn build<T: Device<Channel = K>>(self) -> Result<T, Error> {
         self.try_into()
     }
 }
@@ -110,16 +123,19 @@ impl DeviceBuilder {
 #[inline(always)]
 fn get_other<T: Clone + 'static>(
     others: &HashMap<String, Box<dyn Any>>,
-    name: &str
+    name: &str,
 ) -> Result<Option<T>, Error> {
-    match others.get(name)  {
+    match others.get(name) {
         Some(v) => Ok(Some(
             v.downcast_ref::<T>()
-                .ok_or(Error::OtherError(
-                    format!("type mismatched for `{}` expected: `{}`", name, type_name::<T>())
-                ))?
-                .clone()
+                .ok_or(Error::OtherError(format!(
+                    "type mismatched for `{}` expected: `{}`",
+                    name,
+                    type_name::<T>()
+                )))?
+                .clone(),
         )),
         None => Ok(None),
     }
 }
+
