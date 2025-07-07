@@ -9,8 +9,8 @@ impl TryFrom<u8> for ZLinMode {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZLinMode::Slave),
-            1 => Ok(ZLinMode::Master),
+            0 => Ok(Self::Slave),
+            1 => Ok(Self::Master),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }
@@ -26,9 +26,9 @@ impl TryFrom<u8> for ZLinDataType {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZLinDataType::TypeData),
-            1 => Ok(ZLinDataType::TypeError),
-            2 => Ok(ZLinDataType::TypeEvent),
+            0 => Ok(Self::TypeData),
+            1 => Ok(Self::TypeError),
+            2 => Ok(Self::TypeEvent),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }
@@ -44,9 +44,9 @@ impl TryFrom<u8> for ZLinEventType {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZLinEventType::Wakeup),
-            1 => Ok(ZLinEventType::EnterSleep),
-            2 => Ok(ZLinEventType::ExitSleep),
+            0 => Ok(Self::Wakeup),
+            1 => Ok(Self::EnterSleep),
+            2 => Ok(Self::ExitSleep),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }
@@ -62,9 +62,9 @@ impl TryFrom<u8> for ZLinCheckSumMode {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZLinCheckSumMode::Classic),
-            1 => Ok(ZLinCheckSumMode::Enhance),
-            2 => Ok(ZLinCheckSumMode::Auto),
+            0 => Ok(Self::Classic),
+            1 => Ok(Self::Enhance),
+            2 => Ok(Self::Auto),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }

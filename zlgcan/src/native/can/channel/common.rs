@@ -28,9 +28,9 @@ impl TryFrom<u8> for ZCanChlType {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZCanChlType::CAN),
-            1 => Ok(ZCanChlType::CANFD_ISO),
-            2 => Ok(ZCanChlType::CANFD_NON_ISO),
+            0 => Ok(Self::CAN),
+            1 => Ok(Self::CANFD_ISO),
+            2 => Ok(Self::CANFD_NON_ISO),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }
@@ -48,8 +48,8 @@ impl TryFrom<u8> for ZCanChlMode {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZCanChlMode::Normal),
-            1 => Ok(ZCanChlMode::ListenOnly),
+            0 => Ok(Self::Normal),
+            1 => Ok(Self::ListenOnly),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }

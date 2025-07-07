@@ -25,9 +25,9 @@ impl TryFrom<u8> for ZCanFrameType {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZCanFrameType::CAN),
-            1 => Ok(ZCanFrameType::CANFD),
-            2 => Ok(ZCanFrameType::ALL),
+            0 => Ok(Self::CAN),
+            1 => Ok(Self::CANFD),
+            2 => Ok(Self::ALL),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }
@@ -56,10 +56,10 @@ impl TryFrom<u8> for ZCanTxMode {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZCanTxMode::Normal),
-            1 => Ok(ZCanTxMode::Once),
-            2 => Ok(ZCanTxMode::SelfReception),
-            3 => Ok(ZCanTxMode::SelfReceptionOnce),
+            0 => Ok(Self::Normal),
+            1 => Ok(Self::Once),
+            2 => Ok(Self::SelfReception),
+            3 => Ok(Self::SelfReceptionOnce),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }

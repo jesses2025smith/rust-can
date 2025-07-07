@@ -12,16 +12,16 @@ use rs_can::CanError;
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone)]
 pub enum ZCanFdStd {
-    CANFD_ISO = 0,
-    CANFD_NON_ISO = 1,
+    ISO = 0,
+    NON_ISO = 1,
 }
 
 impl TryFrom<u8> for ZCanFdStd {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZCanFdStd::CANFD_ISO),
-            1 => Ok(ZCanFdStd::CANFD_NON_ISO),
+            0 => Ok(Self::ISO),
+            1 => Ok(Self::NON_ISO),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }
@@ -38,8 +38,8 @@ impl TryFrom<u8> for ZCanFilterType {
     type Error = CanError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(ZCanFilterType::Double),
-            1 => Ok(ZCanFilterType::Single),
+            0 => Ok(Self::Double),
+            1 => Ok(Self::Single),
             _ => Err(CanError::other_error("parameter not supported")),
         }
     }
