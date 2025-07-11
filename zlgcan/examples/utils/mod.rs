@@ -25,7 +25,7 @@ pub fn init_device() -> Result<ZDriver, CanError> {
 
     builder
         .add_other(DEVICE_TYPE, Box::new(dev_type))
-        .add_other(DEVICE_INDEX, Box::new(0))
+        .add_other(DEVICE_INDEX, Box::new(0u32))
         .add_config(0, ch1_cfg)
         .add_config(1, ch2_cfg);
 
