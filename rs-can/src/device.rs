@@ -8,6 +8,7 @@ use std::{
     any::{type_name, Any},
     collections::HashMap,
     hash::Hash,
+    sync::Weak,
 };
 
 pub type CanResult<R, E> = Result<R, E>;
@@ -19,12 +20,10 @@ where
     F: Frame
 {
     fn as_any(&self) -> &dyn Any;
-    /// Callback when frame transmitting.
-    async fn on_frame_transmitting(&self, channel: C, frame: &F);
     /// Callback when frame transmit success.
     async fn on_frame_transmitted(&self, channel: C, id: Id);
     /// Callback when frames received.
-    async fn on_frame_received(&self, channel: C, frames: &[F]);
+    async fn on_frame_received(&self, frames: Weak<Vec<F>>);
 }
 
 #[async_trait::async_trait]
