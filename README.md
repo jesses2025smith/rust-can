@@ -1,4 +1,3 @@
-# This project has become part of [ecu-proto-rs](https://github.com/jesses2025smith/ecu-proto-rs)
 # A uniform driver for CAN device 
 
 ### Device supported
@@ -10,8 +9,10 @@
 
   - ZLG(周立功) 
     - USBCAN-I/II
+    - USBCANFD-100U
+    - USBCANFD-mini
     - USBCANFD-200U
-    - USNCANFD-400U(only channel 1 and channel 2 can be used)
+    - USNCANFD-400U
     - USBCANFD-800U
 
 ### Welcome to contribute for adding more device supported.
