@@ -2,7 +2,8 @@ use nican_rs::{CanMessage, NiCan};
 use rs_can::{CanDevice, CanFrame, CanId, ChannelConfig, DeviceBuilder};
 use std::time::Duration;
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let channel = "CAN0";
     let mut builder = DeviceBuilder::new();
     builder.add_config(channel, ChannelConfig::new(500_000));
@@ -13,13 +14,13 @@ fn main() -> anyhow::Result<()> {
     loop {
         let mut msg = CanMessage::new(CanId::from(0x7DF), data.as_slice()).unwrap();
         msg.set_channel(channel.into());
-        device.transmit(msg, None)?;
+        device.transmit(msg, None).await?;
 
-        std::thread::sleep(Duration::from_millis(5));
-        if let Ok(recv) = device.receive(channel.into(), Some(10)) {
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        if let Ok(recv) = device.receive(channel.into(), Some(10)).await {
             recv.into_iter().for_each(|msg| println!("{}", msg));
         }
-        std::thread::sleep(Duration::from_millis(100));
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
         count += 1;
         if count > 10 {
