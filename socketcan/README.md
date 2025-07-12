@@ -19,16 +19,7 @@ To use **socketcan-rs** in your Rust project, add it as a dependency in your `Ca
 ```toml
 [dependencies]
 socketcan-rs = { version="lastest-version" }
-```
-
-### UDS example
-```toml
-[dependencies]
-docan = { git = "https://github.com/jesses2025smith/docan-rs", branch = "develop" }
-iso14229-1 = { git = "https://github.com/jesses2025smith/iso14229-1", branch = "develop" }
-rs-can = { git = "https://github.com/jesses2025smith/rust-can", branch = "develop", package = "rs-can", features = ["isotp-std2004"]  }
-socketcan-rs = { git = "https://github.com/jesses2025smith/rust-can", branch = "develop", package = "socketcan-rs" }
-anyhow = "1"
+rs-can = { version="lastest-version" }
 ```
 
 ```shell
@@ -38,71 +29,41 @@ candump vcan0   # show vcan0 message
 ```
 
 ```rust
-use docan::{Client as _, DoCanClient, DoCanServer, Server as _};
-use iso14229_1::SessionType;
-use rs_can::{Frame, isotp::{Address, AddressType, IsoTpAdapter}};
+use rs_can::{CanDevice, CanError, CanFrame, DeviceBuilder};
 use socketcan_rs::{CanMessage, SocketCan};
 
-type Client = (IsoTpAdapter<SocketCan, String, CanMessage>, DoCanClient<SocketCan, String, CanMessage>);
-type Server = (IsoTpAdapter<SocketCan, String, CanMessage>, DoCanServer<SocketCan, String, CanMessage>);
-
-fn init_client() -> anyhow::Result<Client> {
-    let channel = "vcan0";
+#[tokio::main]
+async fn main() -> Result<(), CanError> {
+    let iface = "vcan0".to_string();
     let mut builder = DeviceBuilder::new();
-    builder.add_config(channel, Default::default());
-    let device: SocketCan = builder.build()?;
+    builder.add_config(iface.clone(), Default::default());
 
-    let mut adapter = IsoTpAdapter::new(device);
-    let mut client = DoCanClient::new(adapter.clone(), None);
+    let device = builder.build::<SocketCan>()?;
 
-    client.init_channel(channel.into(), Address {
-        tx_id: 0x7E0,
-        rx_id: 0x7E8,
-        fid: 0x7DF,
-    })?;
+    let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+    let mut message = CanMessage::new(0x1234, &data).unwrap();
+    message.set_channel(iface.clone());
+    device.transmit(message, None).await?;
 
-    adapter.start(100);
+    let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
+    let mut message = CanMessage::new(0x1234, &data).unwrap();
+    message.set_channel(iface.clone());
+    device.transmit(message, None).await?;
 
-    Ok((adapter, client))
-}
-
-fn init_server() -> anyhow::Result<Server> {
-    let channel = "vcan0";
-    let mut builder = DeviceBuilder::new();
-    builder.add_config(channel, Default::default());
-    let device: SocketCan = builder.build()?;
-
-    let mut adapter = IsoTpAdapter::new(device);
-    let server = DoCanServer::new(adapter.clone(), channel.into(), Address {
-        tx_id: 0x7E8,
-        rx_id: 0x7E0,
-        fid: 0x7DF,
-    });
-
-    adapter.start(100);
-
-    Ok((adapter, server))
-}
-
-#[test]
-fn test_uds() -> anyhow::Result<()> {
-    let channel = "vcan0";
-    let (_, mut client) = init_client()?;
-    let (_, mut server) = init_server()?;
-
-    std::thread::spawn(move || {
-        if let Err(e) = server.service_forever(100) {
-            println!("docan server start error: {}", e);
+    loop {
+        match device.receive(iface.clone(), None).await {
+            Ok(frames) =>
+                if !frames.is_empty() {
+                    frames.into_iter()
+                        .for_each(|f| println!("{}", f));
+                    break;
+                }
+            Err(e) => match e {
+                CanError::TimeoutError(_) => {},
+                e => return Err(e),
+            }
         }
-    });
-
-    let mut message = CanMessage::new(0x123, &[0x01, 0x02, 0x03, 0x04]).unwrap();
-    message.set_channel(channel.to_string());
-    client.adapter().sender().send(message)?;
-
-    client.session_ctrl(channel.to_string(), SessionType::Default, false, AddressType::Physical)?;
-    client.session_ctrl(channel.to_string(), SessionType::Default, true, AddressType::Physical)?;
-    client.session_ctrl(channel.to_string(), SessionType::Default, true, AddressType::Functional)?;
+    }
 
     Ok(())
 }
