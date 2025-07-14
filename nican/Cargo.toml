@@ -21,7 +21,7 @@ winapi = { version = "0.3", features = ["errhandlingapi", "libloaderapi", "winnt
 
 [dev-dependencies]
 anyhow = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 
 #[build-dependencies]
 #bindgen = "0.71"

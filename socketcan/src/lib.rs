@@ -423,7 +423,9 @@ impl CanDevice for SocketCan {
     #[inline(always)]
     async fn receive(&self, channel: Self::Channel, timeout: Option<u32>) -> CanResult<Vec<Self::Frame>, CanError> {
         let timeout = timeout.unwrap_or(0);
-        let msg = self.read_timeout(&channel, Duration::from_millis(timeout as u64))?;
+        let mut msg = self.read_timeout(&channel, Duration::from_millis(timeout as u64))?;
+        msg.set_channel(channel);
+            // .set_direct(CanDirect::Receive);
         Ok(vec![msg, ])
     }
 

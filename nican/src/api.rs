@@ -24,7 +24,7 @@ impl Into<NCTYPE_CAN_FRAME> for CanMessage {
         }
 
         NCTYPE_CAN_FRAME {
-            ArbitrationId: arb_id,
+            ArbitrationId: arb_id as u64,
             IsRemote: if self.is_remote() { 1 } else { 0 },
             DataLength: data_len,
             Data: data.try_into().unwrap(),
@@ -38,7 +38,7 @@ impl TryInto<CanMessage> for NCTYPE_CAN_STRUCT {
     fn try_into(self) -> Result<CanMessage, Self::Error> {
         let is_remote_frame = self.FrameType == NC_FRMTYPE_REMOTE as u8;
         let is_error_frame = self.FrameType == NC_FRMTYPE_COMM_ERR as u8;
-        let arb_id = self.ArbitrationId;
+        let arb_id = self.ArbitrationId as u32;
         let is_extended = (arb_id & NC_FL_CAN_ARBID_XTD) > 0;
         let dlc = self.DataLength;
         let timestamp = (self.Timestamp.HighPart as u64) << 32 | (self.Timestamp.LowPart as u64);
