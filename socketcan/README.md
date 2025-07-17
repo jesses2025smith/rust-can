@@ -8,8 +8,12 @@
 
 It is a part of rust-can driver.
 
+- v0.1.x is deprecated
+- v0.2.x is sync
+- v0.3.x and higher is async
+
 ### Prerequisites
-- Rust 1.70 or higher
+- Rust 1.80 or higher
 - Cargo (included with Rust)
 
 ### Adding to Your Project
