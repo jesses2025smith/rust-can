@@ -24,7 +24,7 @@ impl Into<NCTYPE_CAN_FRAME> for CanMessage {
         }
 
         NCTYPE_CAN_FRAME {
-            ArbitrationId: arb_id as u64,
+            ArbitrationId: arb_id as NCTYPE_CAN_ARBID,
             IsRemote: if self.is_remote() { 1 } else { 0 },
             DataLength: data_len,
             Data: data.try_into().unwrap(),

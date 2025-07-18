@@ -4,13 +4,10 @@ use std::{
     collections::HashMap,
     ffi::{c_char, CStr, CString},
 };
-use winapi::{
-    shared::minwindef::HMODULE,
-    um::{
-        errhandlingapi::GetLastError,
-        libloaderapi::{GetProcAddress, LoadLibraryA},
-        winnt::LPCSTR,
-    },
+use windows::{
+    core::PCSTR,
+    Win32::Foundation::HMODULE,
+    Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress},
 };
 
 #[derive(Debug, Clone)]
@@ -53,46 +50,45 @@ unsafe impl Sync for NiCan {}
 impl NiCan {
     pub fn new(dll_path: Option<&str>) -> Result<Self, CanError> {
         let dll_path = dll_path.unwrap_or(r"Nican.dll");
+        let dll_path = PCSTR::from_raw(dll_path.as_ptr());
         unsafe {
-            let dll_cstr =
-                CString::new(dll_path).map_err(|e| CanError::OtherError(e.to_string()))?;
-            let dll = LoadLibraryA(dll_cstr.as_ptr() as LPCSTR);
-            if dll.is_null() {
-                let code = GetLastError();
-                return Err(CanError::InitializeError(format!(
-                    "Can't load library: {} code: {}",
-                    dll_path, code
-                )));
-            }
+            let dll =
+                GetModuleHandleA(dll_path).map_err(|e| CanError::InitializeError(e.to_string()))?;
 
             Ok(Self {
                 _dll: dll,
                 channels: Default::default(),
                 ncConfig: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncConfig\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncConfig\0".as_ptr()),
                 )),
                 ncOpenObject: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncOpenObject\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncOpenObject\0".as_ptr()),
                 )),
                 ncAction: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncAction\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncAction\0".as_ptr()),
                 )),
                 ncCloseObject: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncCloseObject\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncCloseObject\0".as_ptr()),
                 )),
-                ncWrite: std::mem::transmute(GetProcAddress(dll, b"ncWrite\0".as_ptr() as LPCSTR)),
-                ncRead: std::mem::transmute(GetProcAddress(dll, b"ncRead\0".as_ptr() as LPCSTR)),
+                ncWrite: std::mem::transmute(GetProcAddress(
+                    dll,
+                    PCSTR::from_raw(b"ncWrite\0".as_ptr()),
+                )),
+                ncRead: std::mem::transmute(GetProcAddress(
+                    dll,
+                    PCSTR::from_raw(b"ncRead\0".as_ptr()),
+                )),
                 ncWaitForState: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncWaitForState\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncWaitForState\0".as_ptr()),
                 )),
                 ncStatusToString: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncStatusToString\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncStatusToString\0".as_ptr()),
                 )),
             })
         }

@@ -25,12 +25,10 @@ Please refer to `examples` for usage examples
 - Cargo (included with Rust)
 
 ### Adding to Your Project
-
-To use **nican** in your Rust project, add it as a dependency in your `Cargo.toml`:
-
 ```toml
 [dependencies]
 nican = { version="lastest-version" }
+rs-can = { version="lastest-version" }
 ```
 
 ## Contributing
