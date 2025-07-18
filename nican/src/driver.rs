@@ -1,5 +1,5 @@
-use crate::{api::*, constant, CanMessage, FILTERS, LIBPATH, LOG_ERROR};
-use rs_can::{CanDevice, CanError, CanFilter, CanFrame, CanResult, DeviceBuilder};
+use crate::{api::*, constant, CanMessage};
+use rs_can::{CanError, CanFilter, CanFrame};
 use std::{
     collections::HashMap,
     ffi::{c_char, CStr, CString},
@@ -12,35 +12,35 @@ use windows::{
 
 #[derive(Debug, Clone)]
 struct NiCanContext {
-    handle: NCTYPE_OBJH,
-    filters: Vec<CanFilter>,
-    bitrate: u32,
-    log_errors: bool,
+    pub(crate) handle: NCTYPE_OBJH,
+    pub(crate) filters: Vec<CanFilter>,
+    pub(crate) bitrate: u32,
+    pub(crate) log_errors: bool,
 }
 
 #[allow(non_snake_case)]
 #[derive(Debug, Clone)]
 pub struct NiCan {
-    _dll: HMODULE,
-    channels: HashMap<String, NiCanContext>,
-    ncConfig: unsafe extern "system" fn(
+    pub(crate) _dll: HMODULE,
+    pub(crate) channels: HashMap<String, NiCanContext>,
+    pub(crate) ncConfig: unsafe extern "system" fn(
         NCTYPE_STRING,
         NCTYPE_UINT32,
         NCTYPE_ATTRID_P,
         NCTYPE_UINT32_P,
     ) -> NCTYPE_STATUS,
-    ncOpenObject: unsafe extern "system" fn(NCTYPE_STRING, NCTYPE_OBJH_P) -> NCTYPE_STATUS,
-    ncAction: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_OPCODE, NCTYPE_UINT32) -> NCTYPE_STATUS,
-    ncCloseObject: unsafe extern "system" fn(NCTYPE_OBJH) -> NCTYPE_STATUS,
-    ncWrite: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
-    ncRead: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
-    ncWaitForState: unsafe extern "system" fn(
+    pub(crate) ncOpenObject: unsafe extern "system" fn(NCTYPE_STRING, NCTYPE_OBJH_P) -> NCTYPE_STATUS,
+    pub(crate) ncAction: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_OPCODE, NCTYPE_UINT32) -> NCTYPE_STATUS,
+    pub(crate) ncCloseObject: unsafe extern "system" fn(NCTYPE_OBJH) -> NCTYPE_STATUS,
+    pub(crate) ncWrite: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
+    pub(crate) ncRead: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
+    pub(crate) ncWaitForState: unsafe extern "system" fn(
         NCTYPE_OBJH,
         NCTYPE_STATE,
         NCTYPE_DURATION,
         NCTYPE_STATE_P,
     ) -> NCTYPE_STATUS,
-    ncStatusToString:
+    pub(crate) ncStatusToString:
         unsafe extern "system" fn(NCTYPE_STATUS, NCTYPE_UINT32, NCTYPE_STRING) -> NCTYPE_STATUS,
 }
 
@@ -336,7 +336,7 @@ impl NiCan {
         self.check_status(channel, ret)
     }
 
-    fn check_status(&self, channel: &str, result: NCTYPE_STATUS) -> Result<(), NCTYPE_STATUS> {
+    pub(crate) fn check_status(&self, channel: &str, result: NCTYPE_STATUS) -> Result<(), NCTYPE_STATUS> {
         if result > 0 {
             rsutil::warn!(
                 "{} {}",
@@ -351,7 +351,7 @@ impl NiCan {
         }
     }
 
-    fn status_to_str(&self, code: NCTYPE_STATUS) -> String {
+    pub(crate) fn status_to_str(&self, code: NCTYPE_STATUS) -> String {
         let mut err = [0u8; 1024];
         unsafe {
             (self.ncStatusToString)(
@@ -363,75 +363,5 @@ impl NiCan {
         let cstr = unsafe { CStr::from_ptr(err.as_ptr() as *const c_char) };
 
         cstr.to_str().unwrap_or("Unknown").to_string()
-    }
-}
-
-impl TryFrom<DeviceBuilder<String>> for NiCan {
-    type Error = CanError;
-
-    fn try_from(builder: DeviceBuilder<String>) -> Result<Self, Self::Error> {
-        let libpath = builder.get_other::<String>(LIBPATH)?;
-        let mut device = NiCan::new(libpath.as_deref())?;
-        builder
-            .channel_configs()
-            .iter()
-            .try_for_each(|(chl, cfg)| {
-                let filters = cfg
-                    .get_other::<Vec<CanFilter>>(FILTERS)?
-                    .unwrap_or_default();
-                let bitrate = cfg.bitrate();
-                let log_error = cfg.get_other::<bool>(LOG_ERROR)?.unwrap_or_default();
-
-                device.open(chl, filters, bitrate, log_error)
-            })?;
-
-        Ok(device)
-    }
-}
-
-#[async_trait::async_trait]
-impl CanDevice for NiCan {
-    type Channel = String;
-    type Frame = CanMessage;
-
-    #[inline]
-    fn is_closed(&self) -> bool {
-        self.channels.is_empty()
-    }
-
-    #[inline]
-    fn opened_channels(&self) -> Vec<Self::Channel> {
-        self.channels.keys().map(|v| v.clone()).collect()
-    }
-
-    #[inline]
-    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
-        self.transmit_can(msg)
-    }
-
-    #[inline]
-    async fn receive(
-        &self,
-        channel: Self::Channel,
-        timeout: Option<u32>,
-    ) -> CanResult<Vec<Self::Frame>, CanError> {
-        self.receive_can(channel, timeout)
-    }
-
-    #[inline]
-    fn shutdown(&mut self) {
-        self.channels.iter().for_each(|(c, ctx)| {
-            let ret = unsafe { (self.ncCloseObject)(ctx.handle) };
-
-            if let Err(e) = self.check_status(c, ret) {
-                rsutil::warn!(
-                    "{} error {} when close",
-                    Self::channel_info(c),
-                    self.status_to_str(e)
-                );
-            }
-        });
-
-        self.channels.clear();
     }
 }

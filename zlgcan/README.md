@@ -29,9 +29,6 @@
  - Cargo (included with Rust)
 
 ### Adding to Your Project
-
-To use **zlgcan** in your Rust project, add it as a dependency in your `Cargo.toml`:
-
 ```toml
 [dependencies]
 rs-can = { version="lastest-version" }

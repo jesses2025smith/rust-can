@@ -18,9 +18,6 @@ It is a part of rust-can driver.
 - Cargo (included with Rust)
 
 ### Adding to Your Project
-
-To use **rs-can** in your Rust project, add it as a dependency in your `Cargo.toml`:
-
 ```toml
 [dependencies]
 rs-can = { version="lastest-version" }
