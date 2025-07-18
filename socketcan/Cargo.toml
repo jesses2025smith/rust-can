@@ -26,4 +26,6 @@ rsutil = { workspace = true, features = ["log"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+futures = { workspace = true }
+scopeguard = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "time"] }
