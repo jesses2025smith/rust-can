@@ -16,7 +16,6 @@ pub type CanResult<R, E> = Result<R, E>;
 #[async_trait::async_trait]
 pub trait Listener<C, F>: Send + Sync
 where
-    C: Send + Sync,
     F: Frame
 {
     fn as_any(&self) -> &dyn Any;
@@ -27,9 +26,9 @@ where
 }
 
 #[async_trait::async_trait]
-pub trait Device: Clone + Send + Sync + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
+pub trait Device: Send + Sync + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
     type Channel: Hash + Eq + Send + Sync + 'static;
-    type Frame: Frame<Channel = Self::Channel> + Send + Sync;
+    type Frame: Frame<Channel = Self::Channel>;
     #[inline]
     fn is_closed(&self) -> bool {
         self.opened_channels().is_empty()
