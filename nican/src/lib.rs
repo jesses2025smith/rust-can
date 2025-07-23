@@ -11,6 +11,9 @@ pub use frame::*;
 
 use rs_can::{CanDevice, CanError, CanFilter, CanResult, DeviceBuilder};
 
+unsafe impl Send for NiCan {}
+unsafe impl Sync for NiCan {}
+
 #[async_trait::async_trait]
 impl CanDevice for NiCan {
     type Channel = String;

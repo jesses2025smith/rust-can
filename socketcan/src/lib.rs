@@ -10,6 +10,9 @@ pub use socket::*;
 use rs_can::{CanDevice, CanError, CanFilter, CanFrame, CanResult, DeviceBuilder};
 use std::{sync::Arc, time::Duration};
 
+unsafe impl Send for SocketCan {}
+unsafe impl Sync for SocketCan {}
+
 #[async_trait::async_trait]
 impl CanDevice for SocketCan {
     type Channel = String;

@@ -11,6 +11,9 @@ use crate::{
 };
 use rs_can::{CanDevice, CanError, CanFrame, CanResult, CanType, DeviceBuilder};
 
+unsafe impl Send for ZDriver {}
+unsafe impl Sync for ZDriver {}
+
 #[async_trait::async_trait]
 impl CanDevice for ZDriver {
     type Channel = u8;

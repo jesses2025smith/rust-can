@@ -44,9 +44,6 @@ pub struct NiCan {
         unsafe extern "system" fn(NCTYPE_STATUS, NCTYPE_UINT32, NCTYPE_STRING) -> NCTYPE_STATUS,
 }
 
-unsafe impl Send for NiCan {}
-unsafe impl Sync for NiCan {}
-
 impl NiCan {
     pub fn new(dll_path: Option<&str>) -> Result<Self, CanError> {
         let dll_path = dll_path.unwrap_or(r"Nican.dll");

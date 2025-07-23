@@ -27,7 +27,7 @@ where
 
 #[async_trait::async_trait]
 pub trait Device: Send + Sync + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
-    type Channel: Hash + Eq + Send + Sync + 'static;
+    type Channel: Hash + Eq + 'static;
     type Frame: Frame<Channel = Self::Channel>;
     #[inline]
     fn is_closed(&self) -> bool {
@@ -93,6 +93,8 @@ pub struct DeviceBuilder<K: Hash + Eq> {
     configs: HashMap<K, ChannelConfig>,
     others: HashMap<String, Box<dyn Any>>,
 }
+unsafe impl<K: Hash + Eq> Sync for DeviceBuilder<K> {}
+unsafe impl<K: Hash + Eq> Send for DeviceBuilder<K> {}
 
 impl<K: Hash + Eq + Default> DeviceBuilder<K> {
     pub fn new() -> Self {

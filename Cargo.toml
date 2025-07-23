@@ -28,7 +28,7 @@ futures = "0.3"
 dlopen2 = "0.8"
 log = "0.4"
 rand = "0.9"
-rs-can = { path = "rs-can", version = "0.3.0" }
+rs-can = { path = "rs-can", version = "0.3.1" }
 rsutil = "0.1"
 scopeguard = "1.2"
 serde = "1.0"
