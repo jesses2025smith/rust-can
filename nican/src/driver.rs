@@ -29,11 +29,15 @@ pub struct NiCan {
         NCTYPE_ATTRID_P,
         NCTYPE_UINT32_P,
     ) -> NCTYPE_STATUS,
-    pub(crate) ncOpenObject: unsafe extern "system" fn(NCTYPE_STRING, NCTYPE_OBJH_P) -> NCTYPE_STATUS,
-    pub(crate) ncAction: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_OPCODE, NCTYPE_UINT32) -> NCTYPE_STATUS,
+    pub(crate) ncOpenObject:
+        unsafe extern "system" fn(NCTYPE_STRING, NCTYPE_OBJH_P) -> NCTYPE_STATUS,
+    pub(crate) ncAction:
+        unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_OPCODE, NCTYPE_UINT32) -> NCTYPE_STATUS,
     pub(crate) ncCloseObject: unsafe extern "system" fn(NCTYPE_OBJH) -> NCTYPE_STATUS,
-    pub(crate) ncWrite: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
-    pub(crate) ncRead: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
+    pub(crate) ncWrite:
+        unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
+    pub(crate) ncRead:
+        unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
     pub(crate) ncWaitForState: unsafe extern "system" fn(
         NCTYPE_OBJH,
         NCTYPE_STATE,
@@ -333,7 +337,11 @@ impl NiCan {
         self.check_status(channel, ret)
     }
 
-    pub(crate) fn check_status(&self, channel: &str, result: NCTYPE_STATUS) -> Result<(), NCTYPE_STATUS> {
+    pub(crate) fn check_status(
+        &self,
+        channel: &str,
+        result: NCTYPE_STATUS,
+    ) -> Result<(), NCTYPE_STATUS> {
         if result > 0 {
             rsutil::warn!(
                 "{} {}",

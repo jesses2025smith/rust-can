@@ -1,7 +1,23 @@
-use std::{collections::HashMap, io, sync::Arc, os::{fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd}, raw::{c_int, c_void}}, time::{Instant, Duration}};
-use libc::{can_filter, can_frame, canfd_frame, canxl_frame, fcntl, read, CAN_RAW_ERR_FILTER, CAN_RAW_FILTER, CAN_RAW_JOIN_FILTERS, CAN_RAW_LOOPBACK, CAN_RAW_RECV_OWN_MSGS, EINPROGRESS, F_GETFL, F_SETFL, O_NONBLOCK, SOL_CAN_RAW, SOL_SOCKET, SO_RCVTIMEO, SO_SNDTIMEO};
-use rs_can::{CanError, CanFilter, CanDirect, CanFrame, ERR_MASK};
-use crate::{c_timeval_new, raw_open_socket, raw_write_frame, set_fd_mode, set_socket_option, set_socket_option_mult, CanAddr, CanAnyFrame, CanMessage};
+use crate::{
+    c_timeval_new, raw_open_socket, raw_write_frame, set_fd_mode, set_socket_option,
+    set_socket_option_mult, CanAddr, CanAnyFrame, CanMessage,
+};
+use libc::{
+    can_filter, can_frame, canfd_frame, canxl_frame, fcntl, read, CAN_RAW_ERR_FILTER,
+    CAN_RAW_FILTER, CAN_RAW_JOIN_FILTERS, CAN_RAW_LOOPBACK, CAN_RAW_RECV_OWN_MSGS, EINPROGRESS,
+    F_GETFL, F_SETFL, O_NONBLOCK, SOL_CAN_RAW, SOL_SOCKET, SO_RCVTIMEO, SO_SNDTIMEO,
+};
+use rs_can::{CanDirect, CanError, CanFilter, CanFrame, ERR_MASK};
+use std::{
+    collections::HashMap,
+    io,
+    os::{
+        fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
+        raw::{c_int, c_void},
+    },
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 pub(crate) const FRAME_SIZE: usize = std::mem::size_of::<can_frame>();
 pub(crate) const FD_FRAME_SIZE: usize = std::mem::size_of::<canfd_frame>();
@@ -14,17 +30,17 @@ pub struct SocketCan {
 
 impl SocketCan {
     pub fn new() -> Self {
-        Self { sockets: Default::default() }
+        Self {
+            sockets: Default::default(),
+        }
     }
 
     pub fn init_channel(&mut self, channel: &str, canfd: bool) -> Result<(), CanError> {
-        let addr = CanAddr::from_iface(channel)
-            .map_err(|e| CanError::InitializeError(e.to_string()))?;
+        let addr =
+            CanAddr::from_iface(channel).map_err(|e| CanError::InitializeError(e.to_string()))?;
 
         let _ = raw_open_socket(&addr)
-            .and_then(|fd| {
-                set_fd_mode(fd, canfd)
-            })
+            .and_then(|fd| set_fd_mode(fd, canfd))
             .and_then(|fd| {
                 Arc::get_mut(&mut self.sockets)
                     .ok_or(io::Error::last_os_error())?
@@ -44,34 +60,38 @@ impl SocketCan {
             Some(s) => {
                 let mut buffer = [0; XL_FRAME_SIZE];
 
-                let rd = unsafe { read(
-                    s.as_raw_fd(),
-                    &mut buffer as *mut _ as *mut c_void,
-                    XL_FRAME_SIZE
-                ) };
+                let rd = unsafe {
+                    read(
+                        s.as_raw_fd(),
+                        &mut buffer as *mut _ as *mut c_void,
+                        XL_FRAME_SIZE,
+                    )
+                };
                 match rd as usize {
                     FRAME_SIZE => {
                         let frame = unsafe { *(&buffer as *const _ as *const can_frame) };
                         let mut frame = CanMessage::from(CanAnyFrame::from(frame));
                         frame.set_direct(CanDirect::Receive);
                         Ok(frame)
-                    },
+                    }
                     FD_FRAME_SIZE => {
                         let frame = unsafe { *(&buffer as *const _ as *const canfd_frame) };
                         let mut frame = CanMessage::from(CanAnyFrame::from(frame));
                         frame.set_direct(CanDirect::Receive);
                         Ok(frame)
-                    },
+                    }
                     XL_FRAME_SIZE => {
                         let frame = unsafe { *(&buffer as *const _ as *const canxl_frame) };
                         let mut frame = CanMessage::from(CanAnyFrame::from(frame));
                         frame.set_direct(CanDirect::Receive);
                         Ok(frame)
-                    },
-                    _ => Err(CanError::OperationError(io::Error::last_os_error().to_string()))
+                    }
+                    _ => Err(CanError::OperationError(
+                        io::Error::last_os_error().to_string(),
+                    )),
                 }
-            },
-            None => Err(CanError::channel_not_opened(channel))
+            }
+            None => Err(CanError::channel_not_opened(channel)),
         }
     }
 
@@ -89,7 +109,7 @@ impl SocketCan {
                     0 => Err(CanError::channel_timeout(channel)),
                     _ => self.read(channel),
                 }
-            },
+            }
             None => Err(CanError::channel_not_opened(channel)),
         }
     }
@@ -100,23 +120,17 @@ impl SocketCan {
             Some(s) => {
                 let frame: CanAnyFrame = msg.into();
                 match frame {
-                    CanAnyFrame::Normal(f) |
-                    CanAnyFrame::Remote(f) |
-                    CanAnyFrame::Error(f) => {
+                    CanAnyFrame::Normal(f) | CanAnyFrame::Remote(f) | CanAnyFrame::Error(f) => {
                         raw_write_frame(s.as_raw_fd(), &f, frame.size())
                             .map_err(|e| CanError::OtherError(e.to_string()))
                     }
-                    CanAnyFrame::Fd(f) => {
-                        raw_write_frame(s.as_raw_fd(), &f, frame.size())
-                            .map_err(|e| CanError::OtherError(e.to_string()))
-                    },
-                    CanAnyFrame::Xl(f) => {
-                        raw_write_frame(s.as_raw_fd(), &f, frame.size())
-                            .map_err(|e| CanError::OtherError(e.to_string()))
-                    },
+                    CanAnyFrame::Fd(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size())
+                        .map_err(|e| CanError::OtherError(e.to_string())),
+                    CanAnyFrame::Xl(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size())
+                        .map_err(|e| CanError::OtherError(e.to_string())),
                 }
-            },
-            None => Err(CanError::channel_not_opened(channel))
+            }
+            None => Err(CanError::channel_not_opened(channel)),
         }
     }
 
@@ -129,32 +143,27 @@ impl SocketCan {
             match self.sockets.get(&channel) {
                 Some(s) => {
                     if let Err(e) = match frame {
-                        CanAnyFrame::Normal(f) |
-                        CanAnyFrame::Remote(f) |
-                        CanAnyFrame::Error(f) => {
+                        CanAnyFrame::Normal(f) | CanAnyFrame::Remote(f) | CanAnyFrame::Error(f) => {
                             raw_write_frame(s.as_raw_fd(), &f, frame.size())
                         }
-                        CanAnyFrame::Fd(f) => {
-                            raw_write_frame(s.as_raw_fd(), &f, frame.size())
-                        },
-                        CanAnyFrame::Xl(f) => {
-                            raw_write_frame(s.as_raw_fd(), &f, frame.size())
-                        }
+                        CanAnyFrame::Fd(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size()),
+                        CanAnyFrame::Xl(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size()),
                     } {
                         match e.kind() {
-                            io::ErrorKind::WouldBlock => {},
-                            io::ErrorKind::Other =>
-                                if !matches!(e.raw_os_error(), Some(errno) if errno == EINPROGRESS) {
+                            io::ErrorKind::WouldBlock => {}
+                            io::ErrorKind::Other => {
+                                if !matches!(e.raw_os_error(), Some(errno) if errno == EINPROGRESS)
+                                {
                                     return Err(CanError::OperationError(e.to_string()));
                                 }
+                            }
                             _ => return Err(CanError::OperationError(e.to_string())),
                         }
-                    }
-                    else {
+                    } else {
                         return Ok(());
                     }
-                },
-                None => return Err(CanError::channel_not_opened(channel))
+                }
+                None => return Err(CanError::channel_not_opened(channel)),
             }
         }
 
@@ -169,7 +178,9 @@ impl SocketCan {
                 let oldfl = unsafe { fcntl(s.as_raw_fd(), F_GETFL) };
 
                 if oldfl == -1 {
-                    return Err(CanError::OperationError(io::Error::last_os_error().to_string()));
+                    return Err(CanError::OperationError(
+                        io::Error::last_os_error().to_string(),
+                    ));
                 }
 
                 let newfl = if nonblocking {
@@ -181,13 +192,14 @@ impl SocketCan {
                 let ret = unsafe { fcntl(s.as_raw_fd(), F_SETFL, newfl) };
 
                 if ret != 0 {
-                    Err(CanError::OperationError(io::Error::last_os_error().to_string()))
-                }
-                else {
+                    Err(CanError::OperationError(
+                        io::Error::last_os_error().to_string(),
+                    ))
+                } else {
                     Ok(())
                 }
-            },
-            None => Err(CanError::channel_not_opened(channel))
+            }
+            None => Err(CanError::channel_not_opened(channel)),
         }
     }
 
@@ -197,38 +209,33 @@ impl SocketCan {
     /// `ShouldRetry::should_retry` when a timeout is set.
     pub fn set_read_timeout(&self, channel: &str, duration: Duration) -> Result<(), CanError> {
         match self.sockets.get(channel) {
-            Some(s) => {
-                set_socket_option(
-                    s.as_raw_fd(),
-                    SOL_SOCKET,
-                    SO_RCVTIMEO,
-                    &c_timeval_new(duration),
-                )
-                    .map_err(|e| CanError::OperationError(e.to_string()))
-            },
-            None => Err(CanError::channel_not_opened(channel))
+            Some(s) => set_socket_option(
+                s.as_raw_fd(),
+                SOL_SOCKET,
+                SO_RCVTIMEO,
+                &c_timeval_new(duration),
+            )
+            .map_err(|e| CanError::OperationError(e.to_string())),
+            None => Err(CanError::channel_not_opened(channel)),
         }
     }
 
     /// Sets the write timeout on the socket
     pub fn set_write_timeout(&self, channel: &str, duration: Duration) -> Result<(), CanError> {
         match self.sockets.get(channel) {
-            Some(s) => {
-                set_socket_option(
-                    s.as_raw_fd(),
-                    SOL_SOCKET,
-                    SO_SNDTIMEO,
-                    &c_timeval_new(duration),
-                )
-                    .map_err(|e| CanError::OperationError(e.to_string()))
-            },
-            None => Err(CanError::channel_not_opened(channel))
+            Some(s) => set_socket_option(
+                s.as_raw_fd(),
+                SOL_SOCKET,
+                SO_SNDTIMEO,
+                &c_timeval_new(duration),
+            )
+            .map_err(|e| CanError::OperationError(e.to_string())),
+            None => Err(CanError::channel_not_opened(channel)),
         }
     }
 }
 
 impl SocketCan {
-
     /// Sets CAN ID filters on the socket.
     ///
     /// CAN packages received by SocketCAN are matched against these filters,
@@ -239,17 +246,16 @@ impl SocketCan {
     pub fn set_filters(&self, channel: &str, filters: &[CanFilter]) -> Result<(), CanError> {
         match self.sockets.get(channel) {
             Some(s) => {
-                let filters: Vec<can_filter> = filters.iter()
-                    .map(|&f| {
-                        can_filter {
-                            can_id: f.can_id,
-                            can_mask: f.can_mask,
-                        }
+                let filters: Vec<can_filter> = filters
+                    .iter()
+                    .map(|&f| can_filter {
+                        can_id: f.can_id,
+                        can_mask: f.can_mask,
                     })
                     .collect();
                 set_socket_option_mult(s.as_raw_fd(), SOL_CAN_RAW, CAN_RAW_FILTER, &filters)
                     .map_err(|e| CanError::OperationError(e.to_string()))
-            },
+            }
             None => Err(CanError::channel_not_opened(channel)),
         }
     }
@@ -274,7 +280,7 @@ impl SocketCan {
     /// accepts all CAN frames.
     #[inline(always)]
     pub fn set_filter_accept_all(&self, channel: &str) -> Result<(), CanError> {
-        self.set_filters(channel, &[CanFilter::from((0, 0))])
+        self.set_filters(channel, &[CanFilter::default()])
     }
 
     /// Sets the error mask on the socket.
@@ -285,10 +291,8 @@ impl SocketCan {
     /// socket to receive notification about the specified conditions.
     pub fn set_error_filter(&self, channel: &str, mask: u32) -> Result<(), CanError> {
         match self.sockets.get(channel) {
-            Some(s) => {
-                set_socket_option(s.as_raw_fd(), SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &mask)
-                    .map_err(|e| CanError::OperationError(e.to_string()))
-            }
+            Some(s) => set_socket_option(s.as_raw_fd(), SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &mask)
+                .map_err(|e| CanError::OperationError(e.to_string())),
             None => Err(CanError::channel_not_opened(channel)),
         }
     }
@@ -335,7 +339,7 @@ impl SocketCan {
                     CAN_RAW_RECV_OWN_MSGS,
                     &recv_own_msgs,
                 )
-                    .map_err(|e| CanError::OperationError(e.to_string()))
+                .map_err(|e| CanError::OperationError(e.to_string()))
             }
             None => Err(CanError::channel_not_opened(channel)),
         }
@@ -356,7 +360,7 @@ impl SocketCan {
                     CAN_RAW_JOIN_FILTERS,
                     &join_filters,
                 )
-                    .map_err(|e| CanError::OperationError(e.to_string()))
+                .map_err(|e| CanError::OperationError(e.to_string()))
             }
             None => Err(CanError::channel_not_opened(channel)),
         }

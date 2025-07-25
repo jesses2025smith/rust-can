@@ -7,14 +7,12 @@ mod win;
 #[cfg(target_os = "windows")]
 pub use win::ZDriver;
 
-use crate::{
-    native::{
-        api::{ZChannelContext, ZDeviceContext},
-        can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType},
-        cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData},
-        device::{DeriveInfo, ZCanDeviceType, ZDeviceInfo},
-        lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe},
-    },
+use crate::native::{
+    api::{ZChannelContext, ZDeviceContext},
+    can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType},
+    cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData},
+    device::{DeriveInfo, ZCanDeviceType, ZDeviceInfo},
+    lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe},
 };
 use rs_can::{CanError, ChannelConfig};
 use std::collections::HashMap;

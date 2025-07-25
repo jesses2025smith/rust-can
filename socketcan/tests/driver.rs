@@ -20,16 +20,16 @@ async fn test_driver() -> anyhow::Result<(), CanError> {
         message.set_channel(iface.clone());
         match device1.transmit(message, None).await {
             Ok(()) => match device2.receive(iface.clone(), None).await {
-                Ok(frames) =>
+                Ok(frames) => {
                     if !frames.is_empty() {
-                        frames.into_iter()
-                            .for_each(|f| println!("{}", f));
+                        frames.into_iter().for_each(|f| println!("{}", f));
                         break;
                     }
-                Err(e) => match e {
-                    CanError::TimeoutError(_) => {},
-                    e => eprintln!("{:?}", e),
                 }
+                Err(e) => match e {
+                    CanError::TimeoutError(_) => {}
+                    e => eprintln!("{:?}", e),
+                },
             },
             Err(_) => continue,
         }

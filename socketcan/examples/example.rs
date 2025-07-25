@@ -35,16 +35,15 @@ async fn main() -> anyhow::Result<(), CanError> {
     let recv_task = tokio::spawn(async move {
         loop {
             match dev_clone2.receive(iface.clone(), None).await {
-                Ok(frames) =>
+                Ok(frames) => {
                     if !frames.is_empty() {
-                        frames.into_iter()
-                            .for_each(|f| println!("{}", f));
+                        frames.into_iter().for_each(|f| println!("{}", f));
                     }
+                }
                 Err(_) => sleep(Duration::from_millis(100)).await,
             }
         }
     });
-
 
     let _guard = scopeguard::guard((), |_| {
         futures::executor::block_on(async {

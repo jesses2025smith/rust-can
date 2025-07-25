@@ -77,12 +77,19 @@ impl TryFrom<DeviceBuilder<u8>> for ZDriver {
         let libpath = builder
             .get_other::<String>(LIBPATH)?
             .ok_or(CanError::other_error(format!("`{}` not found", LIBPATH)))?;
-        let dev_type = builder
-            .get_other::<ZCanDeviceType>(DEVICE_TYPE)?
-            .ok_or(CanError::other_error(format!("`{}` not found", DEVICE_TYPE)))?;
+        let dev_type =
+            builder
+                .get_other::<ZCanDeviceType>(DEVICE_TYPE)?
+                .ok_or(CanError::other_error(format!(
+                    "`{}` not found",
+                    DEVICE_TYPE
+                )))?;
         let dev_idx = builder
             .get_other::<u32>(DEVICE_INDEX)?
-            .ok_or(CanError::other_error(format!("`{}` not found", DEVICE_INDEX)))?;
+            .ok_or(CanError::other_error(format!(
+                "`{}` not found",
+                DEVICE_INDEX
+            )))?;
         let derive = builder.get_other::<DeriveInfo>(DERIVE_INFO)?;
 
         let mut device = Self::new(libpath, dev_type, dev_idx, derive)?;

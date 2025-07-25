@@ -20,9 +20,7 @@ impl CanDevice for SocketCan {
 
     #[inline(always)]
     fn opened_channels(&self) -> Vec<Self::Channel> {
-        self.sockets.iter()
-            .map(|(c, _)| c.clone())
-            .collect()
+        self.sockets.iter().map(|(c, _)| c.clone()).collect()
     }
 
     #[inline(always)]
@@ -34,12 +32,16 @@ impl CanDevice for SocketCan {
     }
 
     #[inline(always)]
-    async fn receive(&self, channel: Self::Channel, timeout: Option<u32>) -> CanResult<Vec<Self::Frame>, CanError> {
+    async fn receive(
+        &self,
+        channel: Self::Channel,
+        timeout: Option<u32>,
+    ) -> CanResult<Vec<Self::Frame>, CanError> {
         let timeout = timeout.unwrap_or(0);
         let mut msg = self.read_timeout(&channel, Duration::from_millis(timeout as u64))?;
         msg.set_channel(channel);
-            // .set_direct(CanDirect::Receive);
-        Ok(vec![msg, ])
+        // .set_direct(CanDirect::Receive);
+        Ok(vec![msg])
     }
 
     #[inline(always)]
@@ -56,11 +58,11 @@ impl TryFrom<DeviceBuilder<String>> for SocketCan {
 
     fn try_from(builder: DeviceBuilder<String>) -> Result<Self, Self::Error> {
         let mut device = SocketCan::new();
-        builder.channel_configs()
+        builder
+            .channel_configs()
             .iter()
             .try_for_each(|(chl, cfg)| {
-                let canfd = cfg.get_other::<bool>(CANFD)?
-                    .unwrap_or_default();
+                let canfd = cfg.get_other::<bool>(CANFD)?.unwrap_or_default();
                 device.init_channel(chl, canfd)?;
 
                 if let Some(filters) = cfg.get_other::<Vec<CanFilter>>(FILTERS)? {
