@@ -1,11 +1,9 @@
 mod constants;
-pub use constants::*;
 mod driver;
-pub use driver::*;
 mod frame;
-pub use frame::*;
 mod socket;
-pub use socket::*;
+
+pub use self::{constants::*, driver::*, frame::*, socket::*};
 
 use rs_can::{CanDevice, CanError, CanFilter, CanFrame, CanResult, DeviceBuilder};
 use std::{sync::Arc, time::Duration};

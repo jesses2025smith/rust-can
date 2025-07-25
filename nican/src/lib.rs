@@ -1,13 +1,10 @@
 mod api;
 mod constant;
-
 mod constants;
-pub use constants::*;
 mod driver;
-pub use driver::*;
-
 mod frame;
-pub use frame::*;
+
+pub use self::{constants::*, driver::*, frame::*};
 
 use rs_can::{CanDevice, CanError, CanFilter, CanResult, DeviceBuilder};
 

@@ -16,7 +16,7 @@ pub type CanResult<R, E> = Result<R, E>;
 #[async_trait::async_trait]
 pub trait Listener<C, F>: Send + Sync
 where
-    F: Frame
+    F: Frame,
 {
     fn as_any(&self) -> &dyn Any;
     /// Callback when frame transmit success.
@@ -138,4 +138,3 @@ fn get_other<T: Clone + 'static>(
         None => Ok(None),
     }
 }
-
