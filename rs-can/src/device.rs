@@ -1,6 +1,6 @@
 use crate::{
     error::Error,
-    frame::{Frame, Id},
+    frame::{identifier::Id, Frame},
 };
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
