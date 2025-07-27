@@ -1,10 +1,7 @@
-use crate::native::can::{
-    constants::{CANFD_BRS, CANFD_ESI},
-    CanMessage,
-};
+use crate::native::can::CanMessage;
 use rs_can::{
-    can_utils, CanDirect, CanError, CanType, IdentifierFlags, DEFAULT_PADDING, EFF_MASK,
-    MAX_FRAME_SIZE,
+    can_utils, CanDirect, CanError, CanFdFlags, CanType, IdentifierFlags, DEFAULT_PADDING,
+    EFF_MASK, MAX_FRAME_SIZE,
 };
 use std::{
     ffi::{c_uchar, c_uint},
@@ -143,12 +140,12 @@ impl<const S: usize> Into<CanMessage> for ZCanMsg20<S> {
             direct: CanDirect::Receive,
             bitrate_switch: match can_type {
                 CanType::Can => false,
-                CanType::CanFd => self.flags & CANFD_BRS > 0,
+                CanType::CanFd => self.flags & CanFdFlags::BRS.bits() > 0,
                 CanType::CanXl => todo!(),
             },
             error_state_indicator: match can_type {
                 CanType::Can => false,
-                CanType::CanFd => self.flags & CANFD_ESI > 0,
+                CanType::CanFd => self.flags & CanFdFlags::ESI.bits() > 0,
                 CanType::CanXl => todo!(),
             },
             tx_mode: None,
@@ -164,11 +161,11 @@ impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
         let length = msg.data.len() as u8;
         let flags = if is_fd {
             (if msg.bitrate_switch {
-                CANFD_BRS
+                CanFdFlags::BRS.bits()
             } else {
                 Default::default()
             }) | (if msg.error_state_indicator {
-                CANFD_ESI
+                CanFdFlags::ESI.bits()
             } else {
                 Default::default()
             })
