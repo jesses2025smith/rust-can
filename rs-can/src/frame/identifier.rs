@@ -22,6 +22,32 @@ bitflags! {
     }
 }
 
+bitflags! {
+    #[repr(transparent)]
+    pub struct CanFdFlags: u8 {
+        /// bit rate switch (second bitrate for payload data)
+        const BRS = 0x01;
+        /// error state indicator of the transmitting node
+        const ESI = 0x02;
+        /// if set, the frame is a CAN FD frame;
+        /// if not set, the frame may be a CAN CC frame or a CAN FD frame.
+        const FDF = 0x04;
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct CanXlFlags: u8 {
+        /// Simple Extended Content.
+        const SEC = 0x01;
+        /// Remote Request Substitution.
+        const RRS = 0x02;
+        /// if set, the frame is a CAN XL frame;
+        /// if not set, the frame is a CAN CC frame or a CAN FD frame.
+        const XLF = 0x80;
+    }
+}
+
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Filter {
     pub can_id: u32,

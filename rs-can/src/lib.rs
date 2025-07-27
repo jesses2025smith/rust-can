@@ -13,7 +13,7 @@ pub use crate::{
     },
     error::Error as CanError,
     frame::{
-        identifier::{Filter as CanFilter, Id as CanId, IdentifierFlags},
+        identifier::{CanFdFlags, CanXlFlags, Filter as CanFilter, Id as CanId, IdentifierFlags},
         Direct as CanDirect, Frame as CanFrame, Type as CanType,
     },
 };
