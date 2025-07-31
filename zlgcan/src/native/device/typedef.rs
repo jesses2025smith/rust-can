@@ -83,6 +83,18 @@ pub enum ZCanDeviceType {
     ZCAN_CANFDDTU_800EWGR_UDP          = 71,
     ZCAN_CANFDDTU_600EWGR_TCP          = 72,
     ZCAN_CANFDDTU_600EWGR_UDP          = 73,
+    ZCAN_CANFDDTU_CASCADE_TCP          = 74,
+    ZCAN_CANFDDTU_CASCADE_UDP          = 75,
+    ZCAN_USBCANFD_400U                 = 76,
+    ZCAN_CANFDDTU_200U                 = 77,
+    ZCAN_ZPSCANFD_TCP                  = 78,
+    ZCAN_ZPSCANFD_USB                  = 79,
+    ZCAN_CANFDBRIDGE_PLUS              = 80,
+    ZCAN_CANFDDTU_300U                 = 81,
+    ZCAN_PCIE_CANFD_800U               = 82,
+    ZCAN_PCIE_CANFD_1200U              = 83,
+    ZCAN_MINI_PCIE_CANFD               = 84,
+    ZCAN_USBCANFD_800H                 = 85,
 
     ZCAN_OFFLINE_DEVICE                = 98,
     ZCAN_VIRTUAL_DEVICE                = 99,
@@ -93,64 +105,111 @@ impl ZCanDeviceType {
     pub fn canfd_support(&self) -> bool {
         matches!(
             self,
-            ZCanDeviceType::ZCAN_CANFDBLUE_200U |
-            ZCanDeviceType::ZCAN_CANFDCOM_100IE |
-            ZCanDeviceType::ZCAN_CANFDDTU_400_TCP | ZCanDeviceType::ZCAN_CANFDDTU_400_UDP |
-            ZCanDeviceType::ZCAN_CANFDDTU_600EWGR_TCP | ZCanDeviceType::ZCAN_CANFDDTU_600EWGR_UDP |
-            ZCanDeviceType::ZCAN_CANFDDTU_800ER_TCP | ZCanDeviceType::ZCAN_CANFDDTU_800ER_UDP |
-            ZCanDeviceType::ZCAN_CANFDDTU_800EWGR_TCP | ZCanDeviceType::ZCAN_CANFDDTU_800EWGR_UDP |
-            ZCanDeviceType::ZCAN_CANFDNET_100U_TCP | ZCanDeviceType::ZCAN_CANFDNET_100U_UDP |
-            ZCanDeviceType::ZCAN_CANFDNET_200U_TCP | ZCanDeviceType::ZCAN_CANFDNET_200U_UDP |
-            ZCanDeviceType::ZCAN_CANFDNET_400U_TCP | ZCanDeviceType::ZCAN_CANFDNET_400U_UDP |
-            ZCanDeviceType::ZCAN_CANFDNET_800U_TCP | ZCanDeviceType::ZCAN_CANFDNET_800U_UDP |
-            ZCanDeviceType::ZCAN_CANFDWIFI_100U_TCP | ZCanDeviceType::ZCAN_CANFDWIFI_100U_UDP |
-            ZCanDeviceType::ZCAN_CANFDWIFI_200U_TCP | ZCanDeviceType::ZCAN_CANFDWIFI_200U_UDP |
-            ZCanDeviceType::ZCAN_PCIE_CANFD_100U | ZCanDeviceType::ZCAN_PCIE_CANFD_100U_EX |
-            ZCanDeviceType::ZCAN_PCIE_CANFD_200U | ZCanDeviceType::ZCAN_PCIE_CANFD_200U_MINI | ZCanDeviceType::ZCAN_PCIE_CANFD_200U_M2 |
-            ZCanDeviceType::ZCAN_PCIE_CANFD_400U | ZCanDeviceType::ZCAN_PCIE_CANFD_400U_EX |
-            ZCanDeviceType::ZCAN_USBCANFD_MINI | ZCanDeviceType::ZCAN_USBCANFD_100U | ZCanDeviceType::ZCAN_USBCANFD_200U | ZCanDeviceType::ZCAN_USBCANFD_800U
+            Self::ZCAN_CANFDBLUE_200U |
+            Self::ZCAN_CANFDCOM_100IE |
+            Self::ZCAN_CANFDDTU_400_TCP | Self::ZCAN_CANFDDTU_400_UDP |
+            Self::ZCAN_CANFDDTU_600EWGR_TCP | Self::ZCAN_CANFDDTU_600EWGR_UDP |
+            Self::ZCAN_CANFDDTU_800ER_TCP | Self::ZCAN_CANFDDTU_800ER_UDP |
+            Self::ZCAN_CANFDDTU_800EWGR_TCP | Self::ZCAN_CANFDDTU_800EWGR_UDP |
+            Self::ZCAN_CANFDNET_100U_TCP | Self::ZCAN_CANFDNET_100U_UDP |
+            Self::ZCAN_CANFDNET_200U_TCP | Self::ZCAN_CANFDNET_200U_UDP |
+            Self::ZCAN_CANFDNET_400U_TCP | Self::ZCAN_CANFDNET_400U_UDP |
+            Self::ZCAN_CANFDNET_800U_TCP | Self::ZCAN_CANFDNET_800U_UDP |
+            Self::ZCAN_CANFDWIFI_100U_TCP | Self::ZCAN_CANFDWIFI_100U_UDP |
+            Self::ZCAN_CANFDWIFI_200U_TCP | Self::ZCAN_CANFDWIFI_200U_UDP |
+            Self::ZCAN_PCIE_CANFD_100U | Self::ZCAN_PCIE_CANFD_100U_EX |
+            Self::ZCAN_PCIE_CANFD_200U | Self::ZCAN_PCIE_CANFD_200U_MINI | Self::ZCAN_PCIE_CANFD_200U_M2 |
+            Self::ZCAN_PCIE_CANFD_400U | Self::ZCAN_PCIE_CANFD_400U_EX |
+            Self::ZCAN_USBCANFD_MINI | Self::ZCAN_USBCANFD_100U | Self::ZCAN_USBCANFD_200U | Self::ZCAN_USBCANFD_400U | Self::ZCAN_USBCANFD_800U
         )
     }
     /// Check the device is supported LIN
     pub const fn lin_support(&self) -> bool{
         matches!(
             self,
-            ZCanDeviceType::ZCAN_USBCANFD_200U | ZCanDeviceType::ZCAN_USBCANFD_800U
+            Self::ZCAN_USBCANFD_200U | Self::ZCAN_USBCANFD_400U
         )
     }
 
     pub const fn has_resistance(&self) -> bool {
         !matches!{
             self,
-            ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2
+            Self::ZCAN_USBCAN1 | Self::ZCAN_USBCAN2
         }
     }
 
     pub const fn cloud_support(&self) -> bool {
         matches!(
             self,
-            ZCanDeviceType::ZCAN_USBCANFD_800U
+            Self::ZCAN_USBCANFD_800U
         )
     }
 
     pub const fn filter_record_support(&self) -> bool {
         matches!(
             self,
-            ZCanDeviceType::ZCAN_PCI5010U | ZCanDeviceType::ZCAN_PCI5020U |
-            ZCanDeviceType::ZCAN_USBCAN_2E_U | ZCanDeviceType::ZCAN_USBCAN_4E_U
+            Self::ZCAN_PCI5010U | Self::ZCAN_PCI5020U |
+            Self::ZCAN_USBCAN_2E_U | Self::ZCAN_USBCAN_4E_U
         )
     }
 
     pub const fn auto_send_support(&self) -> bool {
         matches!(
             self,
-            ZCanDeviceType::ZCAN_USBCAN_2E_U | ZCanDeviceType::ZCAN_USBCAN_4E_U | ZCanDeviceType::ZCAN_USBCAN_8E_U
+            Self::ZCAN_USBCAN_2E_U | Self::ZCAN_USBCAN_4E_U | Self::ZCAN_USBCAN_8E_U
         )
     }
     /// set value then read and check the value if true
     /// TODO
     pub const fn get_value_support(&self) -> bool {
         true
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl ZCanDeviceType {
+    #[inline(always)]
+    pub const fn is_usbcan(&self) -> bool {
+        matches!(
+            self,
+            Self::ZCAN_USBCAN1 | Self::ZCAN_USBCAN2
+        )
+    }
+    #[inline(always)]
+    pub const fn is_usbcan_4e_u(&self) -> bool {
+        matches!(
+            self,
+            Self::ZCAN_USBCAN_4E_U
+        )
+    }
+    #[inline(always)]
+    pub const fn is_usbcan_8e_u(&self) -> bool {
+        matches!(
+            self,
+            Self::ZCAN_USBCAN_8E_U
+        )
+    }
+    #[inline(always)]
+    pub const fn is_usbcanfd(&self) -> bool {
+        matches!(
+            self,
+            Self::ZCAN_USBCANFD_MINI
+            | Self::ZCAN_USBCANFD_100U
+            | Self::ZCAN_USBCANFD_200U
+            | Self::ZCAN_USBCANFD_400U
+        )
+    }
+    #[inline(always)]
+    pub const fn is_usbcanfd_800u(&self) -> bool {
+        matches!(
+            self,
+            Self::ZCAN_USBCANFD_800U
+        )
+    }
+    #[inline(always)]
+    pub const fn is_linux_support(&self) -> bool {
+        self.is_usbcan() || self.is_usbcan_4e_u() || self.is_usbcan_8e_u()
+            || self.is_usbcanfd() || self.is_usbcanfd_800u()
     }
 }
 

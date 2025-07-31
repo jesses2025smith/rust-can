@@ -240,6 +240,8 @@ pub trait ZCloud {
 }
 
 /// device is supported LIN
+#[allow(dead_code)]
+#[inline(always)]
 pub(crate) fn lin_support(dev_type: ZCanDeviceType) -> Result<(), CanError> {
     if !dev_type.lin_support() {
         return Err(CanError::NotSupportedError);
@@ -249,6 +251,7 @@ pub(crate) fn lin_support(dev_type: ZCanDeviceType) -> Result<(), CanError> {
 
 /// device is supported CLOUD
 #[allow(dead_code)]
+#[inline(always)]
 pub(crate) fn cloud_support(dev_type: ZCanDeviceType) -> Result<(), CanError> {
     if !dev_type.cloud_support() {
         return Err(CanError::NotSupportedError);
