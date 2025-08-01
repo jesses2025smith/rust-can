@@ -11,7 +11,7 @@ use windows::{
 };
 
 #[derive(Debug, Clone)]
-struct NiCanContext {
+pub(crate) struct NiCanContext {
     pub(crate) handle: NCTYPE_OBJH,
     pub(crate) filters: Vec<CanFilter>,
     pub(crate) bitrate: u32,
