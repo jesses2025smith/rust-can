@@ -104,6 +104,8 @@ impl ZCanChlCfgInner {
         acc_code: Option<u32>,
         acc_mask: Option<u32>,
     ) -> Result<Self, CanError> {
+        let mode = ZCanChlMode::try_from(mode)?;
+        let filter = ZCanFilterType::try_from(filter)?;
         Ok(Self {
             acc_code: acc_code.unwrap_or(0),
             acc_mask: acc_mask.unwrap_or(0xFFFFFFFF),
@@ -133,10 +135,10 @@ impl ZCanChlCfgInner {
                         .unwrap_or(ZCanChlMode::Normal),
                     timing0,
                     timing1,
-                    cfg.get_other::<ZCanFilterType>(constants::FILTER_TYPE)?
-                        .unwrap_or(ZCanFilterType::default()),
-                    cfg.get_other::<u32>(constants::ACC_CODE)?,
-                    cfg.get_other::<u32>(constants::ACC_MASK)?,
+                    cfg.get_other::<u8>(FILTER)?
+                        .unwrap_or(0xFF),
+                    cfg.get_other::<u32>(ACC_CODE)?,
+                    cfg.get_other::<u32>(ACC_MASK)?,
                 )
             }
             None => Err(CanError::OtherError(format!(
@@ -210,3 +212,4 @@ pub struct ZCanChlStatus {
     /**< TX errors */
     pub Reserved: c_uint,
 }
+
