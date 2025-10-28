@@ -1,98 +1,95 @@
-use crate::{api::*, constant, CanMessage, FILTERS, LIBPATH, LOG_ERROR};
-use rs_can::{CanDevice, CanError, CanFilter, CanFrame, CanResult, DeviceBuilder};
+use crate::{api::*, constant, CanMessage};
+use rs_can::{CanError, CanFilter, CanFrame};
 use std::{
     collections::HashMap,
     ffi::{c_char, CStr, CString},
 };
-use winapi::{
-    shared::minwindef::HMODULE,
-    um::{
-        errhandlingapi::GetLastError,
-        libloaderapi::{GetProcAddress, LoadLibraryA},
-        winnt::LPCSTR,
-    },
+use windows::{
+    core::PCSTR,
+    Win32::Foundation::HMODULE,
+    Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress},
 };
 
 #[derive(Debug, Clone)]
-struct NiCanContext {
-    handle: NCTYPE_OBJH,
-    filters: Vec<CanFilter>,
-    bitrate: u32,
-    log_errors: bool,
+pub(crate) struct NiCanContext {
+    pub(crate) handle: NCTYPE_OBJH,
+    pub(crate) filters: Vec<CanFilter>,
+    pub(crate) bitrate: u32,
+    pub(crate) log_errors: bool,
 }
 
 #[allow(non_snake_case)]
 #[derive(Debug, Clone)]
 pub struct NiCan {
-    _dll: HMODULE,
-    channels: HashMap<String, NiCanContext>,
-    ncConfig: unsafe extern "system" fn(
+    pub(crate) _dll: HMODULE,
+    pub(crate) channels: HashMap<String, NiCanContext>,
+    pub(crate) ncConfig: unsafe extern "system" fn(
         NCTYPE_STRING,
         NCTYPE_UINT32,
         NCTYPE_ATTRID_P,
         NCTYPE_UINT32_P,
     ) -> NCTYPE_STATUS,
-    ncOpenObject: unsafe extern "system" fn(NCTYPE_STRING, NCTYPE_OBJH_P) -> NCTYPE_STATUS,
-    ncAction: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_OPCODE, NCTYPE_UINT32) -> NCTYPE_STATUS,
-    ncCloseObject: unsafe extern "system" fn(NCTYPE_OBJH) -> NCTYPE_STATUS,
-    ncWrite: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
-    ncRead: unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
-    ncWaitForState: unsafe extern "system" fn(
+    pub(crate) ncOpenObject:
+        unsafe extern "system" fn(NCTYPE_STRING, NCTYPE_OBJH_P) -> NCTYPE_STATUS,
+    pub(crate) ncAction:
+        unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_OPCODE, NCTYPE_UINT32) -> NCTYPE_STATUS,
+    pub(crate) ncCloseObject: unsafe extern "system" fn(NCTYPE_OBJH) -> NCTYPE_STATUS,
+    pub(crate) ncWrite:
+        unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
+    pub(crate) ncRead:
+        unsafe extern "system" fn(NCTYPE_OBJH, NCTYPE_UINT32, NCTYPE_ANY_P) -> NCTYPE_STATUS,
+    pub(crate) ncWaitForState: unsafe extern "system" fn(
         NCTYPE_OBJH,
         NCTYPE_STATE,
         NCTYPE_DURATION,
         NCTYPE_STATE_P,
     ) -> NCTYPE_STATUS,
-    ncStatusToString:
+    pub(crate) ncStatusToString:
         unsafe extern "system" fn(NCTYPE_STATUS, NCTYPE_UINT32, NCTYPE_STRING) -> NCTYPE_STATUS,
 }
-
-unsafe impl Send for NiCan {}
-unsafe impl Sync for NiCan {}
 
 impl NiCan {
     pub fn new(dll_path: Option<&str>) -> Result<Self, CanError> {
         let dll_path = dll_path.unwrap_or(r"Nican.dll");
+        let dll_path = PCSTR::from_raw(dll_path.as_ptr());
         unsafe {
-            let dll_cstr =
-                CString::new(dll_path).map_err(|e| CanError::OtherError(e.to_string()))?;
-            let dll = LoadLibraryA(dll_cstr.as_ptr() as LPCSTR);
-            if dll.is_null() {
-                let code = GetLastError();
-                return Err(CanError::InitializeError(format!(
-                    "Can't load library: {} code: {}",
-                    dll_path, code
-                )));
-            }
+            let dll =
+                GetModuleHandleA(dll_path).map_err(|e| CanError::InitializeError(e.to_string()))?;
 
             Ok(Self {
                 _dll: dll,
                 channels: Default::default(),
                 ncConfig: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncConfig\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncConfig\0".as_ptr()),
                 )),
                 ncOpenObject: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncOpenObject\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncOpenObject\0".as_ptr()),
                 )),
                 ncAction: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncAction\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncAction\0".as_ptr()),
                 )),
                 ncCloseObject: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncCloseObject\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncCloseObject\0".as_ptr()),
                 )),
-                ncWrite: std::mem::transmute(GetProcAddress(dll, b"ncWrite\0".as_ptr() as LPCSTR)),
-                ncRead: std::mem::transmute(GetProcAddress(dll, b"ncRead\0".as_ptr() as LPCSTR)),
+                ncWrite: std::mem::transmute(GetProcAddress(
+                    dll,
+                    PCSTR::from_raw(b"ncWrite\0".as_ptr()),
+                )),
+                ncRead: std::mem::transmute(GetProcAddress(
+                    dll,
+                    PCSTR::from_raw(b"ncRead\0".as_ptr()),
+                )),
                 ncWaitForState: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncWaitForState\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncWaitForState\0".as_ptr()),
                 )),
                 ncStatusToString: std::mem::transmute(GetProcAddress(
                     dll,
-                    b"ncStatusToString\0".as_ptr() as LPCSTR,
+                    PCSTR::from_raw(b"ncStatusToString\0".as_ptr()),
                 )),
             })
         }
@@ -340,7 +337,11 @@ impl NiCan {
         self.check_status(channel, ret)
     }
 
-    fn check_status(&self, channel: &str, result: NCTYPE_STATUS) -> Result<(), NCTYPE_STATUS> {
+    pub(crate) fn check_status(
+        &self,
+        channel: &str,
+        result: NCTYPE_STATUS,
+    ) -> Result<(), NCTYPE_STATUS> {
         if result > 0 {
             rsutil::warn!(
                 "{} {}",
@@ -355,7 +356,7 @@ impl NiCan {
         }
     }
 
-    fn status_to_str(&self, code: NCTYPE_STATUS) -> String {
+    pub(crate) fn status_to_str(&self, code: NCTYPE_STATUS) -> String {
         let mut err = [0u8; 1024];
         unsafe {
             (self.ncStatusToString)(
@@ -367,75 +368,5 @@ impl NiCan {
         let cstr = unsafe { CStr::from_ptr(err.as_ptr() as *const c_char) };
 
         cstr.to_str().unwrap_or("Unknown").to_string()
-    }
-}
-
-impl TryFrom<DeviceBuilder<String>> for NiCan {
-    type Error = CanError;
-
-    fn try_from(builder: DeviceBuilder<String>) -> Result<Self, Self::Error> {
-        let libpath = builder.get_other::<String>(LIBPATH)?;
-        let mut device = NiCan::new(libpath.as_deref())?;
-        builder
-            .channel_configs()
-            .iter()
-            .try_for_each(|(chl, cfg)| {
-                let filters = cfg
-                    .get_other::<Vec<CanFilter>>(FILTERS)?
-                    .unwrap_or_default();
-                let bitrate = cfg.bitrate();
-                let log_error = cfg.get_other::<bool>(LOG_ERROR)?.unwrap_or_default();
-
-                device.open(chl, filters, bitrate, log_error)
-            })?;
-
-        Ok(device)
-    }
-}
-
-#[async_trait::async_trait]
-impl CanDevice for NiCan {
-    type Channel = String;
-    type Frame = CanMessage;
-
-    #[inline]
-    fn is_closed(&self) -> bool {
-        self.channels.is_empty()
-    }
-
-    #[inline]
-    fn opened_channels(&self) -> Vec<Self::Channel> {
-        self.channels.keys().map(|v| v.clone()).collect()
-    }
-
-    #[inline]
-    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
-        self.transmit_can(msg)
-    }
-
-    #[inline]
-    async fn receive(
-        &self,
-        channel: Self::Channel,
-        timeout: Option<u32>,
-    ) -> CanResult<Vec<Self::Frame>, CanError> {
-        self.receive_can(channel, timeout)
-    }
-
-    #[inline]
-    fn shutdown(&mut self) {
-        self.channels.iter().for_each(|(c, ctx)| {
-            let ret = unsafe { (self.ncCloseObject)(ctx.handle) };
-
-            if let Err(e) = self.check_status(c, ret) {
-                rsutil::warn!(
-                    "{} error {} when close",
-                    Self::channel_info(c),
-                    self.status_to_str(e)
-                );
-            }
-        });
-
-        self.channels.clear();
     }
 }

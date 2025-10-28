@@ -17,15 +17,13 @@ It is a part of rust-can driver.
 - Cargo (included with Rust)
 
 ### Adding to Your Project
-
-To use **socketcan-rs** in your Rust project, add it as a dependency in your `Cargo.toml`:
-
 ```toml
 [dependencies]
 socketcan-rs = { version="lastest-version" }
 rs-can = { version="lastest-version" }
 ```
 
+### Use virtual can on Linux
 ```shell
 sudo ip link add dev vcan0 type vcan
 sudo ip link set dev vcan0 up
@@ -36,38 +34,44 @@ candump vcan0   # show vcan0 message
 use rs_can::{CanDevice, CanError, CanFrame, DeviceBuilder};
 use socketcan_rs::{CanMessage, SocketCan};
 
+fn device_builder(iface: String) -> anyhow::Result<SocketCan, CanError> {
+    let mut builder = DeviceBuilder::new();
+    builder.add_config(iface, Default::default());
+    builder.build()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), CanError> {
     let iface = "vcan0".to_string();
-    let mut builder = DeviceBuilder::new();
-    builder.add_config(iface.clone(), Default::default());
 
-    let device = builder.build::<SocketCan>()?;
-
-    let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
-    let mut message = CanMessage::new(0x1234, &data).unwrap();
-    message.set_channel(iface.clone());
-    device.transmit(message, None).await?;
-
-    let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
-    let mut message = CanMessage::new(0x1234, &data).unwrap();
-    message.set_channel(iface.clone());
-    device.transmit(message, None).await?;
+    let mut device1 = device_builder(iface.clone())?;
+    let mut device2 = device_builder(iface.clone())?;
 
     loop {
-        match device.receive(iface.clone(), None).await {
-            Ok(frames) =>
-                if !frames.is_empty() {
-                    frames.into_iter()
-                        .for_each(|f| println!("{}", f));
-                    break;
+        let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        let mut message = CanMessage::new(0x1234, &data).unwrap();
+        message.set_channel(iface.clone());
+        match device1.transmit(message, None).await {
+            Ok(()) => match device2.receive(iface.clone(), None).await {
+                Ok(frames) =>
+                    if !frames.is_empty() {
+                        frames.into_iter()
+                            .for_each(|f| println!("{}", f));
+                        break;
+                    }
+                Err(e) => match e {
+                    CanError::TimeoutError(_) => {},
+                    e => {
+                        eprintln!("{:?}", e);
+                    },
                 }
-            Err(e) => match e {
-                CanError::TimeoutError(_) => {},
-                e => return Err(e),
-            }
+            },
+            Err(_) => continue,
         }
     }
+
+    device1.shutdown();
+    device2.shutdown();
 
     Ok(())
 }

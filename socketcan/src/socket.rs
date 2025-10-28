@@ -1,7 +1,13 @@
 //! from [socketcan](https://crates.io/crates/socketcan-rs)
 
-use std::{ffi::CString, fmt, io, mem, os::raw::{c_int, c_void}, time::Duration, ptr};
 use libc::*;
+use std::{
+    ffi::CString,
+    fmt, io, mem,
+    os::raw::{c_int, c_void},
+    ptr,
+    time::Duration,
+};
 
 /// Tries to open the CAN socket by the interface number.
 pub fn raw_open_socket(addr: &CanAddr) -> io::Result<c_int> {
@@ -204,8 +210,7 @@ impl CanAddr {
         let ifindex = unsafe { if_nametoindex(ifname.as_ptr()) };
         if ifindex == 0 {
             Err(io::Error::last_os_error())
-        }
-        else {
+        } else {
             Ok(Self::new(ifindex))
         }
     }

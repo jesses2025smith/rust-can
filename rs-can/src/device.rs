@@ -1,6 +1,6 @@
 use crate::{
     error::Error,
-    frame::{Frame, Id},
+    frame::{identifier::Id, Frame},
 };
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
@@ -16,8 +16,7 @@ pub type CanResult<R, E> = Result<R, E>;
 #[async_trait::async_trait]
 pub trait Listener<C, F>: Send + Sync
 where
-    C: Send + Sync,
-    F: Frame
+    F: Frame,
 {
     fn as_any(&self) -> &dyn Any;
     /// Callback when frame transmit success.
@@ -27,9 +26,9 @@ where
 }
 
 #[async_trait::async_trait]
-pub trait Device: Clone + Send + Sync + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
-    type Channel: Hash + Eq + Send + Sync + 'static;
-    type Frame: Frame<Channel = Self::Channel> + Send + Sync;
+pub trait Device: Send + Sync + TryFrom<DeviceBuilder<Self::Channel>, Error = Error> {
+    type Channel: Hash + Eq + 'static;
+    type Frame: Frame<Channel = Self::Channel>;
     #[inline]
     fn is_closed(&self) -> bool {
         self.opened_channels().is_empty()
@@ -94,6 +93,8 @@ pub struct DeviceBuilder<K: Hash + Eq> {
     configs: HashMap<K, ChannelConfig>,
     others: HashMap<String, Box<dyn Any>>,
 }
+unsafe impl<K: Hash + Eq> Sync for DeviceBuilder<K> {}
+unsafe impl<K: Hash + Eq> Send for DeviceBuilder<K> {}
 
 impl<K: Hash + Eq + Default> DeviceBuilder<K> {
     pub fn new() -> Self {
@@ -137,4 +138,3 @@ fn get_other<T: Clone + 'static>(
         None => Ok(None),
     }
 }
-

@@ -1,14 +1,17 @@
-use std::fmt::{Display, Formatter};
-use libc::{can_frame, canfd_frame, canxl_frame};
-use rs_can::{CanDirect, IdentifierFlags, EFF_MASK, can_utils, CanFrame, CanId, MAX_FRAME_SIZE, CanType, MAX_FD_FRAME_SIZE, MAX_XL_FRAME_SIZE};
 use crate::{socket, FD_FRAME_SIZE, FRAME_SIZE, XL_FRAME_SIZE};
+use libc::{can_frame, canfd_frame, canxl_frame};
+use rs_can::{
+    can_utils, CanDirect, CanFrame, CanId, CanType, IdentifierFlags, EFF_MASK, MAX_FD_FRAME_SIZE,
+    MAX_FRAME_SIZE, MAX_XL_FRAME_SIZE,
+};
+use std::fmt::{Display, Formatter};
 
 pub enum CanAnyFrame {
     Normal(can_frame),
     Remote(can_frame),
     Error(can_frame),
     Fd(canfd_frame),
-    Xl(canxl_frame)
+    Xl(canxl_frame),
 }
 
 impl CanAnyFrame {
@@ -29,11 +32,9 @@ impl From<can_frame> for CanAnyFrame {
         let can_id = frame.can_id;
         if can_id & IdentifierFlags::REMOTE.bits() != 0 {
             Self::Remote(frame)
-        }
-        else if can_id & IdentifierFlags::ERROR.bits() != 0 {
+        } else if can_id & IdentifierFlags::ERROR.bits() != 0 {
             Self::Error(frame)
-        }
-        else {
+        } else {
             Self::Normal(frame)
         }
     }
@@ -160,7 +161,7 @@ impl Into<CanAnyFrame> for CanMessage {
 
                 frame.can_id = can_id;
                 CanAnyFrame::Normal(frame)
-            },
+            }
             CanType::CanFd => {
                 let mut frame = socket::canfd_frame_default();
                 let mut can_id = self.arbitration_id;
@@ -184,7 +185,7 @@ impl Into<CanAnyFrame> for CanMessage {
                 }
 
                 CanAnyFrame::Fd(frame)
-            },
+            }
             CanType::CanXl => todo!(),
         }
     }
@@ -213,7 +214,7 @@ impl CanFrame for CanMessage {
                     bitrate_switch: false,
                     error_state_indicator: false,
                 })
-            },
+            }
             Err(_) => None,
         }
     }
@@ -238,7 +239,7 @@ impl CanFrame for CanMessage {
                     bitrate_switch: false,
                     error_state_indicator: false,
                 })
-            },
+            }
             Err(_) => None,
         }
     }
@@ -266,18 +267,24 @@ impl CanFrame for CanMessage {
 
     fn set_can_type(&mut self, r#type: CanType) -> &mut Self {
         match r#type {
-            CanType::Can => if self.length > MAX_FRAME_SIZE {
-                rsutil::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
-                self.length = MAX_FRAME_SIZE;
-            },
-            CanType::CanFd => if self.length > MAX_FD_FRAME_SIZE {
-                rsutil::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
-                self.length = MAX_FD_FRAME_SIZE;
-            },
-            CanType::CanXl => if self.length > MAX_XL_FRAME_SIZE {
-                rsutil::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
-                self.length = MAX_XL_FRAME_SIZE;
-            },
+            CanType::Can => {
+                if self.length > MAX_FRAME_SIZE {
+                    rsutil::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
+                    self.length = MAX_FRAME_SIZE;
+                }
+            }
+            CanType::CanFd => {
+                if self.length > MAX_FD_FRAME_SIZE {
+                    rsutil::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
+                    self.length = MAX_FD_FRAME_SIZE;
+                }
+            }
+            CanType::CanXl => {
+                if self.length > MAX_XL_FRAME_SIZE {
+                    rsutil::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
+                    self.length = MAX_XL_FRAME_SIZE;
+                }
+            }
         }
 
         self.can_type = r#type;
@@ -368,19 +375,18 @@ impl PartialEq for CanMessage {
 
         if self.is_remote_frame {
             other.is_remote_frame && (self.arbitration_id == other.arbitration_id)
-        }
-        else {
-            (self.arbitration_id == other.arbitration_id) &&
-                (self.is_extended_id == other.is_extended_id) &&
-                (self.is_error_frame == other.is_error_frame) &&
-                (self.error_state_indicator == other.error_state_indicator) &&
-                (self.data == other.data)
+        } else {
+            (self.arbitration_id == other.arbitration_id)
+                && (self.is_extended_id == other.is_extended_id)
+                && (self.is_error_frame == other.is_error_frame)
+                && (self.error_state_indicator == other.error_state_indicator)
+                && (self.data == other.data)
         }
     }
 }
 
 impl Display for CanMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <dyn CanFrame<Channel=String> as Display>::fmt(self, f)
+        <dyn CanFrame<Channel = String> as Display>::fmt(self, f)
     }
 }

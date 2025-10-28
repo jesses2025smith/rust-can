@@ -22,24 +22,40 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+bitflags! {
+    #[repr(transparent)]
+    pub struct CanFdFlags: u8 {
+        /// bit rate switch (second bitrate for payload data)
+        const BRS = 0x01;
+        /// error state indicator of the transmitting node
+        const ESI = 0x02;
+        /// if set, the frame is a CAN FD frame;
+        /// if not set, the frame may be a CAN CC frame or a CAN FD frame.
+        const FDF = 0x04;
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct CanXlFlags: u8 {
+        /// Simple Extended Content.
+        const SEC = 0x01;
+        /// Remote Request Substitution.
+        const RRS = 0x02;
+        /// if set, the frame is a CAN XL frame;
+        /// if not set, the frame is a CAN CC frame or a CAN FD frame.
+        const XLF = 0x80;
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Filter {
     pub can_id: u32,
     pub can_mask: u32,
     pub extended: bool,
 }
 
-impl From<(u32, u32)> for Filter {
-    fn from(value: (u32, u32)) -> Self {
-        Self {
-            can_id: value.0,
-            can_mask: value.1,
-            extended: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Id {
     Standard(u16),
     Extended(u32),
@@ -49,15 +65,15 @@ unsafe impl Send for Id {}
 unsafe impl Sync for Id {}
 
 impl Into<u32> for Id {
+    /// 32-bit integer with extended flag
     fn into(self) -> u32 {
-        match self {
-            Self::Standard(id) => id as u32,
-            Self::Extended(id) => id,
-        }
+        self.into_bits()
     }
 }
 
 impl From<u32> for Id {
+    /// Return [`Id::Extended`] if [`IdentifierFlags::EXTENDED`] bit is set
+    /// or `id` value rather than [`SFF_MASK`] else [`Id::Standard`]
     fn from(id: u32) -> Self {
         Self::_from_bits(id)
     }
@@ -74,6 +90,10 @@ impl Id {
         Self::Extended(id)
     }
 
+    /// Return [`Id::Extended`] if `force_extend` is Some(true)
+    /// or [`IdentifierFlags::EXTENDED`] bit is set
+    /// or `id` value rather than [`SFF_MASK`]
+    /// else [`Id::Standard`]
     #[inline]
     pub fn from_bits(id: u32, force_extend: Option<bool>) -> Self {
         match force_extend {
@@ -82,14 +102,16 @@ impl Id {
         }
     }
 
+    /// Returns [`Id`] as a 32-bit integer with extended flag.
     #[inline]
     pub fn into_bits(self) -> u32 {
         match self {
             Self::Standard(id) => id as u32,
-            Self::Extended(id) => id,
+            Self::Extended(id) => id | IdentifierFlags::EXTENDED.bits(),
         }
     }
 
+    /// Parse from a hex string.
     #[inline]
     pub fn from_hex(hex_str: &str, force_extend: Option<bool>) -> Option<Self> {
         let bits = u32::from_str_radix(hex_str, 16).ok()?;
@@ -97,9 +119,10 @@ impl Id {
         Some(Self::from_bits(bits, force_extend))
     }
 
+    /// Display [`Id`] as hex string.
     #[inline]
     pub fn into_hex(self) -> String {
-        std::fmt::format(format_args!("{:08X}", self.into_bits()))
+        format!("{:08X}", self.into_bits())
     }
 
     /// Returns the Base ID part of this extended identifier.
@@ -111,12 +134,16 @@ impl Id {
         }
     }
 
-    /// Returns this CAN Identifier as a raw 32-bit integer.
+    /// Returns [`Id`] as a 32-bit integer without extended flag.
     #[inline]
     pub fn as_raw(self) -> u32 {
-        self.into_bits()
+        match self {
+            Self::Standard(id) => id as u32,
+            Self::Extended(id) => id,
+        }
     }
 
+    /// Return `true` if [`Id`] is extended else `false`
     #[inline]
     pub fn is_extended(&self) -> bool {
         matches!(self, Self::Extended(_))

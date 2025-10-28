@@ -17,7 +17,7 @@ async-trait = { workspace = true }
 log = { workspace = true }
 rsutil = { workspace = true, features = ["log"] }
 rs-can = { workspace = true }
-winapi = { version = "0.3", features = ["errhandlingapi", "libloaderapi", "winnt", "minwindef"] }
+windows = { version = "0.61", features = ["Win32_System_LibraryLoader"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }

@@ -1,6 +1,6 @@
-mod identifier;
-pub use identifier::*;
+pub(crate) mod identifier;
 
+use self::identifier::Id;
 use crate::utils::can_dlc;
 use std::fmt::{Display, Formatter, Write};
 

@@ -9,9 +9,6 @@ pub(crate) const SJW: &str = "sjw"; // Synchronization Jump Width
 pub(crate) const SMP: &str = "smp"; // Sampling specifies
 pub(crate) const BRP: &str = "brp"; // BaudRate Pre-scale
 
-pub(crate) const CANFD_BRS: u8 = 0x01; /* bit rate switch (second bitrate for payload data) */
-pub(crate) const CANFD_ESI: u8 = 0x02; /* error state indicator of the transmitting node */
-
 // pub const CAN_FRAME_LENGTH: usize = 8;
 pub(crate) const CANERR_FRAME_LENGTH: usize = 8;
 // pub const CANFD_FRAME_LENGTH: usize = 64;

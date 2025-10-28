@@ -2,7 +2,10 @@ use rand::{prelude::ThreadRng, rng, Rng};
 use rs_can::{
     CanError, CanFrame, CanId, ChannelConfig, DeviceBuilder, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
 };
-use std::{time::{Duration, SystemTime}, thread};
+use std::{
+    thread,
+    time::{Duration, SystemTime},
+};
 use zlgcan_rs::{
     can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode},
     device::{DeriveInfo, ZCanDeviceType},
