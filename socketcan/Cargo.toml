@@ -20,7 +20,7 @@ crate-type = ["lib", "cdylib"]
 async-trait = { workspace = true }
 libc = "0.2"
 log = { workspace = true }
-nix = { version="0.30", features = ["poll", "process", "net"] }
+nix = { version="0.31", features = ["poll", "process", "net"] }
 rs-can = { workspace = true }
 rsutil = { workspace = true, features = ["log"] }
 
