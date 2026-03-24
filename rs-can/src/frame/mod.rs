@@ -122,7 +122,7 @@ impl<T: Display> Display for dyn Frame<Channel = T> {
                     "{:.3} {} {}{: <4} {} {} {} {}",
                     self.timestamp() as f64 / 1000.,
                     self.channel(),
-                    format!("{: >8x}", self.id().into_bits()),
+                    format!("{: >8x}", self.id().as_raw()),
                     if self.is_extended() { "x" } else { "" },
                     self.direct(),
                     // if self.is_rx() { "Rx" } else { "Tx" },
@@ -140,7 +140,7 @@ impl<T: Display> Display for dyn Frame<Channel = T> {
                     self.channel(),
                     self.direct(),
                     // if self.is_rx() { "Rx" } else { "Tx" },
-                    format!("{: >8x}", self.id().into_bits()),
+                    format!("{: >8x}", self.id().as_raw()),
                     if self.is_bitrate_switch() {
                         flags |= 1 << 13;
                         1

@@ -1,4 +1,4 @@
-use rand::{prelude::ThreadRng, rng, Rng};
+use rand::{RngExt, prelude::ThreadRng};
 use rs_can::{
     CanError, CanFrame, CanId, ChannelConfig, DeviceBuilder, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
 };
@@ -32,7 +32,7 @@ fn new_messages(
     extend: bool,
     brs: Option<bool>,
 ) -> anyhow::Result<Vec<CanMessage>> {
-    let mut rng = rng();
+    let mut rng = rand::rng();
     let mut frames = Vec::new();
     for _ in 0..size {
         let id = CanId::from_bits(generate_can_id(&mut rng, extend), Some(extend));

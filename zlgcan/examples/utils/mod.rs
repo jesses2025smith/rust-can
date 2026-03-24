@@ -8,7 +8,7 @@ use zlgcan_rs::{
 
 pub const CHANNEL: u8 = 0;
 
-pub fn init_device() -> Result<ZCanDriver, CanError> {
+pub fn init_device() -> Result<ZDriver, CanError> {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
 
     let mut builder = DeviceBuilder::new();

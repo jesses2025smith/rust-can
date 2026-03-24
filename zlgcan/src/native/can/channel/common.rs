@@ -103,10 +103,8 @@ impl ZCanChlCfgInner {
         filter: ZCanFilterType,
         acc_code: Option<u32>,
         acc_mask: Option<u32>,
-    ) -> Result<Self, CanError> {
-        let mode = ZCanChlMode::try_from(mode)?;
-        let filter = ZCanFilterType::try_from(filter)?;
-        Ok(Self {
+    ) -> Self {
+        Self {
             acc_code: acc_code.unwrap_or(0),
             acc_mask: acc_mask.unwrap_or(0xFFFFFFFF),
             reserved: Default::default(),
@@ -114,7 +112,7 @@ impl ZCanChlCfgInner {
             timing0: timing0 as u8,
             timing1: timing1 as u8,
             mode: mode as u8,
-        })
+        }
     }
 
     pub(crate) fn try_from_with(ctx: &BitrateCtx, cfg: &ChannelConfig) -> Result<Self, CanError> {
@@ -129,17 +127,17 @@ impl ZCanChlCfgInner {
                     "`{}` is not configured in file!",
                     TIMING1
                 )))?;
+                let filter = cfg.get_other::<u8>(constants::FILTER_TYPE)?.unwrap_or(0xFF);
 
-                Self::new(
+                Ok(Self::new(
                     cfg.get_other::<ZCanChlMode>(constants::CHANNEL_MODE)?
                         .unwrap_or(ZCanChlMode::Normal),
                     timing0,
                     timing1,
-                    cfg.get_other::<u8>(FILTER)?
-                        .unwrap_or(0xFF),
-                    cfg.get_other::<u32>(ACC_CODE)?,
-                    cfg.get_other::<u32>(ACC_MASK)?,
-                )
+                    ZCanFilterType::try_from(filter)?,
+                    cfg.get_other::<u32>(constants::ACC_CODE)?,
+                    cfg.get_other::<u32>(constants::ACC_MASK)?,
+                ))
             }
             None => Err(CanError::OtherError(format!(
                 "the bitrate: `{}` is not configured",
@@ -212,4 +210,3 @@ pub struct ZCanChlStatus {
     /**< TX errors */
     pub Reserved: c_uint,
 }
-
