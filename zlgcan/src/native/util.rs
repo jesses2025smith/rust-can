@@ -13,6 +13,8 @@ const LIB_PATH: &str = "windows/x86_64/";
 const LIB_PATH: &str = "linux/x86/";
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 const LIB_PATH: &str = "linux/x86_64/";
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+const LIB_PATH: &str = "linux/aarch64/";
 
 #[inline]
 pub fn c_str_to_string(src: *const c_char) -> Result<String, CanError> {
