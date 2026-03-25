@@ -52,6 +52,7 @@ pub(crate) struct USBCANEApi<'a> {
     pub(crate) ReleaseIProperty: Symbol<'a, unsafe extern "C" fn(p: *const IProperty) -> c_uint>,
 }
 
+#[allow(unused)]    // aarch64 unused
 impl USBCANEApi<'_> {
     pub(crate) const INVALID_DEVICE_HANDLE: u32 = 0;
     pub(crate) const INVALID_CHANNEL_HANDLE: u32 = 0;

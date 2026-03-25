@@ -163,7 +163,7 @@ impl ZDevice for ZDriver {
                 }
                 #[cfg(not(target_arch = "x86_64"))]
                 {
-                    return Err(CanError::NotSupportedError);
+                    rsutil::warn!("{:?}", CanError::NotSupportedError);
                 }
             } else if self.dev_type.is_usbcan_8e_u() {
                 #[cfg(target_arch = "x86_64")]
