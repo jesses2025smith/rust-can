@@ -1,9 +1,10 @@
+#[cfg(target_arch = "x86_64")]
+use crate::native::api::{USBCANEApi, USBCANFD800UApi};
 use crate::{
     driver::{Handler, ZCan, ZCloud, ZDevice, ZLin},
     native::{
         api::{
-            USBCANApi, USBCANEApi, USBCANFD800UApi, USBCANFDApi, ZCanApi, ZChannelContext,
-            ZDeviceApi, ZDeviceContext, ZLinApi,
+            USBCANApi, USBCANFDApi, ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext, ZLinApi,
         },
         can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType},
         device::{DeriveInfo, ZCanDeviceType, ZDeviceInfo},
@@ -20,9 +21,12 @@ pub struct ZDriver {
     pub(crate) libpath: String,
     pub(crate) handler: Option<Handler>,
     pub(crate) usbcan_api: Arc<Container<USBCANApi<'static>>>,
+    #[cfg(target_arch = "x86_64")]
     pub(crate) usbcan_4e_api: Arc<Container<USBCANEApi<'static>>>,
+    #[cfg(target_arch = "x86_64")]
     pub(crate) usbcan_8e_api: Arc<Container<USBCANEApi<'static>>>,
     pub(crate) usbcanfd_api: Arc<Container<USBCANFDApi<'static>>>,
+    #[cfg(target_arch = "x86_64")]
     pub(crate) usbcanfd_800u_api: Arc<Container<USBCANFD800UApi<'static>>>,
     pub(crate) dev_type: ZCanDeviceType,
     pub(crate) dev_idx: u32,
@@ -44,10 +48,12 @@ impl ZDevice for ZDriver {
                 unsafe { Container::load(&get_libpath(&path, "libusbcan.so")) }
                     .map_err(|e| CanError::InitializeError(e.to_string()))?,
             ),
+            #[cfg(target_arch = "x86_64")]
             usbcan_4e_api: Arc::new(
                 unsafe { Container::load(&get_libpath(&path, "libusbcan-4e.so")) }
                     .map_err(|e| CanError::InitializeError(e.to_string()))?,
             ),
+            #[cfg(target_arch = "x86_64")]
             usbcan_8e_api: Arc::new(
                 unsafe { Container::load(&get_libpath(&path, "libusbcan-8e.so")) }
                     .map_err(|e| CanError::InitializeError(e.to_string()))?,
@@ -56,6 +62,7 @@ impl ZDevice for ZDriver {
                 unsafe { Container::load(&get_libpath(&path, "libusbcanfd.so")) }
                     .map_err(|e| CanError::InitializeError(e.to_string()))?,
             ),
+            #[cfg(target_arch = "x86_64")]
             usbcanfd_800u_api: Arc::new(
                 unsafe { Container::load(&get_libpath(&path, "libusbcanfd800u.so")) }
                     .map_err(|e| CanError::InitializeError(e.to_string()))?,
@@ -86,17 +93,38 @@ impl ZDevice for ZDriver {
                 None => dev_info = self.usbcan_api.read_device_info(&context)?,
             }
         } else if self.dev_type.is_usbcan_4e_u() {
-            self.usbcan_4e_api.open(&mut context)?;
-            dev_info = self.usbcan_4e_api.read_device_info(&context)?;
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.usbcan_4e_api.open(&mut context)?;
+                dev_info = self.usbcan_4e_api.read_device_info(&context)?;
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                return Err(CanError::NotSupportedError);
+            }
         } else if self.dev_type.is_usbcan_8e_u() {
-            self.usbcan_8e_api.open(&mut context)?;
-            dev_info = self.usbcan_8e_api.read_device_info(&context)?;
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.usbcan_8e_api.open(&mut context)?;
+                dev_info = self.usbcan_8e_api.read_device_info(&context)?;
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                return Err(CanError::NotSupportedError);
+            }
         } else if self.dev_type.is_usbcanfd() {
             self.usbcanfd_api.open(&mut context)?;
             dev_info = self.usbcanfd_api.read_device_info(&context)?;
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.usbcanfd_800u_api.open(&mut context)?;
-            dev_info = self.usbcanfd_800u_api.read_device_info(&context)?;
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.usbcanfd_800u_api.open(&mut context)?;
+                dev_info = self.usbcanfd_800u_api.read_device_info(&context)?;
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                return Err(CanError::NotSupportedError);
+            }
         } else {
             return Err(CanError::NotSupportedError);
         }
@@ -120,19 +148,38 @@ impl ZDevice for ZDriver {
                     .close(dev_hdl.device_context())
                     .unwrap_or_else(|e| rsutil::warn!("{}", e));
             } else if self.dev_type.is_usbcan_4e_u() {
+                #[cfg(target_arch = "x86_64")]
+                {
+                    for (idx, context) in cans {
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        self.usbcan_4e_api
+                            .reset_can_chl(context)
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                    }
+
+                self.usbcan_api
+                    .close(dev_hdl.device_context())
+                    .unwrap_or_else(|e| rsutil::warn!("{}", e));
+            } else if self.dev_type.is_usbcan_4e_u() {
                 for (idx, context) in cans {
                     rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                     self.usbcan_4e_api
                         .reset_can_chl(context)
                         .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 }
-
-                self.usbcan_4e_api
-                    .close(dev_hdl.device_context())
-                    .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                #[cfg(not(target_arch = "x86_64"))]
+                {
+                    rsutil::warn!("{:?}", CanError::NotSupportedError);
+                }
             } else if self.dev_type.is_usbcan_8e_u() {
-                for (idx, context) in cans {
-                    rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                #[cfg(target_arch = "x86_64")]
+                {
+                    for (idx, context) in cans {
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        self.usbcan_8e_api
+                            .reset_can_chl(context)
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                    }
                     self.usbcan_8e_api
                         .reset_can_chl(context)
                         .unwrap_or_else(|e| rsutil::warn!("{}", e));
@@ -140,6 +187,17 @@ impl ZDevice for ZDriver {
                 self.usbcan_8e_api
                     .close(dev_hdl.device_context())
                     .unwrap_or_else(|e| rsutil::warn!("{}", e));
+            } else if self.dev_type.is_usbcanfd() {
+                for (idx, context) in cans {
+                    rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                    self.usbcanfd_api
+                        .reset_can_chl(context)
+                        .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                }
+                #[cfg(not(target_arch = "x86_64"))]
+                {
+                    rsutil::warn!("{:?}", CanError::NotSupportedError);
+                }
             } else if self.dev_type.is_usbcanfd() {
                 for (idx, context) in cans {
                     rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
@@ -159,16 +217,29 @@ impl ZDevice for ZDriver {
                     .close(dev_hdl.device_context())
                     .unwrap_or_else(|e| rsutil::warn!("{}", e));
             } else if self.dev_type.is_usbcanfd_800u() {
+                #[cfg(target_arch = "x86_64")]
+                {
+                    for (idx, context) in cans {
+                        rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
+                        self.usbcanfd_800u_api
+                            .reset_can_chl(context)
+                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                    }
+
+                self.usbcanfd_api
+                    .close(dev_hdl.device_context())
+                    .unwrap_or_else(|e| rsutil::warn!("{}", e));
+            } else if self.dev_type.is_usbcanfd_800u() {
                 for (idx, context) in cans {
                     rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                     self.usbcanfd_800u_api
                         .reset_can_chl(context)
                         .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 }
-
-                self.usbcanfd_800u_api
-                    .close(dev_hdl.device_context())
-                    .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                #[cfg(not(target_arch = "x86_64"))]
+                {
+                    rsutil::warn!("{:?}", CanError::NotSupportedError);
+                }
             } else {
                 rsutil::warn!("{:?}", CanError::NotSupportedError);
             }
@@ -225,23 +296,39 @@ impl ZCan for ZDriver {
                     //     }
                     //     chl_hdl = self.usbcan_4e_api.init_can_chl(dev_hdl.device_handler(), idx, cfg)?;
                     // },
-                    if self.dev_type == ZCanDeviceType::ZCAN_USBCAN_4E_U {
-                        return self.usbcan_4e_api.init_can_chl_ex(
-                            &self.libpath,
-                            dev_hdl,
-                            channels,
-                            &cfg,
-                        );
+                    #[cfg(target_arch = "x86_64")]
+                    {
+                        if self.dev_type == ZCanDeviceType::ZCAN_USBCAN_4E_U {
+                            return self.usbcan_4e_api.init_can_chl_ex(
+                                &self.libpath,
+                                dev_hdl,
+                                channels,
+                                &cfg,
+                            );
+                        }
+                    }
+                    #[cfg(not(target_arch = "x86_64"))]
+                    {
+                        return Err(CanError::NotSupportedError);
                     }
                 } else if self.dev_type.is_usbcan_8e_u() {
-                    if let Some(chl_hdl) = dev_hdl.find_can(channel) {
+                    #[cfg(target_arch = "x86_64")]
+                    {
+                        if let Some(chl_hdl) = dev_hdl.find_can(channel) {
+                            self.usbcan_8e_api
+                                .reset_can_chl(chl_hdl)
+                                .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                            dev_hdl.remove_can(channel);
+                        }
                         self.usbcan_8e_api
                             .reset_can_chl(chl_hdl)
                             .unwrap_or_else(|e| rsutil::warn!("{}", e));
                         dev_hdl.remove_can(channel);
                     }
-                    self.usbcan_8e_api
-                        .init_can_chl(&self.libpath, &mut context, &cfg)?;
+                    #[cfg(not(target_arch = "x86_64"))]
+                    {
+                        return Err(CanError::NotSupportedError);
+                    }
                 } else if self.dev_type.is_usbcanfd() {
                     if let Some(context) = dev_hdl.find_can(channel) {
                         self.usbcanfd_api.reset_can_chl(context)?;
@@ -250,20 +337,29 @@ impl ZCan for ZDriver {
                     self.usbcanfd_api
                         .init_can_chl(&self.libpath, &mut context, &cfg)?;
                 } else if self.dev_type.is_usbcanfd_800u() {
-                    if let Some(chl_hdl) = dev_hdl.find_can(channel) {
+                    #[cfg(target_arch = "x86_64")]
+                    {
+                        if let Some(chl_hdl) = dev_hdl.find_can(channel) {
+                            self.usbcanfd_800u_api
+                                .reset_can_chl(chl_hdl)
+                                .unwrap_or_else(|e| rsutil::warn!("{}", e));
+                            dev_hdl.remove_can(channel);
+                        }
+                        self.usbcanfd_800u_api.init_can_chl_ex(
+                            self.dev_type,
+                            self.dev_idx,
+                            channel,
+                            &cfg,
+                        )?;
                         self.usbcanfd_800u_api
                             .reset_can_chl(chl_hdl)
                             .unwrap_or_else(|e| rsutil::warn!("{}", e));
                         dev_hdl.remove_can(channel);
                     }
-                    self.usbcanfd_800u_api.init_can_chl_ex(
-                        self.dev_type,
-                        self.dev_idx,
-                        channel,
-                        &cfg,
-                    )?;
-                    self.usbcanfd_800u_api
-                        .init_can_chl(&self.libpath, &mut context, &cfg)?;
+                    #[cfg(not(target_arch = "x86_64"))]
+                    {
+                        return Err(CanError::NotSupportedError);
+                    }
                 } else {
                     return Err(CanError::NotSupportedError);
                 }
@@ -282,13 +378,34 @@ impl ZCan for ZDriver {
                     if self.dev_type.is_usbcan() {
                         self.usbcan_api.reset_can_chl(context)?;
                     } else if self.dev_type.is_usbcan_4e_u() {
-                        self.usbcan_4e_api.reset_can_chl(context)?;
+                        #[cfg(target_arch = "x86_64")]
+                        {
+                            self.usbcan_4e_api.reset_can_chl(context)?;
+                        }
+                        #[cfg(not(target_arch = "x86_64"))]
+                        {
+                            return Err(CanError::NotSupportedError);
+                        }
                     } else if self.dev_type.is_usbcan_8e_u() {
-                        self.usbcan_8e_api.reset_can_chl(context)?;
+                        #[cfg(target_arch = "x86_64")]
+                        {
+                            self.usbcan_8e_api.reset_can_chl(context)?;
+                        }
+                        #[cfg(not(target_arch = "x86_64"))]
+                        {
+                            return Err(CanError::NotSupportedError);
+                        }
                     } else if self.dev_type.is_usbcanfd() {
                         self.usbcanfd_api.reset_can_chl(context)?;
                     } else if self.dev_type.is_usbcanfd_800u() {
-                        self.usbcanfd_800u_api.reset_can_chl(context)?;
+                        #[cfg(target_arch = "x86_64")]
+                        {
+                            self.usbcanfd_800u_api.reset_can_chl(context)?;
+                        }
+                        #[cfg(not(target_arch = "x86_64"))]
+                        {
+                            return Err(CanError::NotSupportedError);
+                        }
                     } else {
                         return Err(CanError::NotSupportedError);
                     }
@@ -308,21 +425,42 @@ impl ZCan for ZDriver {
                 self.usbcan_api.read_can_chl_status(context)
             })
         } else if self.dev_type.is_usbcan_4e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_4e_api.read_can_chl_status(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.read_can_chl_status(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcan_8e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_8e_api.read_can_chl_status(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.read_can_chl_status(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
                 self.usbcanfd_api.read_can_chl_status(context)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |chl_hdl| {
-                self.usbcanfd_800u_api.read_can_chl_status(chl_hdl)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |chl_hdl| {
+                    self.usbcanfd_800u_api.read_can_chl_status(chl_hdl)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
             Err(CanError::NotSupportedError)
         }
@@ -334,23 +472,44 @@ impl ZCan for ZDriver {
                 self.usbcan_api.read_can_chl_error(context)
             })
         } else if self.dev_type.is_usbcan_4e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_4e_api.read_can_chl_error(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.read_can_chl_error(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcan_8e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_8e_api.read_can_chl_error(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.read_can_chl_error(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
                 self.usbcanfd_api.read_can_chl_error(context)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |context| {
-                self.usbcanfd_800u_api.read_can_chl_error(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.read_can_chl_error(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
-            return Err(CanError::NotSupportedError);
+            Err(CanError::NotSupportedError)
         }
     }
 
@@ -358,21 +517,42 @@ impl ZCan for ZDriver {
         if self.dev_type.is_usbcan() {
             self.can_handler(channel, |context| self.usbcan_api.clear_can_buffer(context))
         } else if self.dev_type.is_usbcan_4e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_4e_api.clear_can_buffer(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.clear_can_buffer(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcan_8e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_8e_api.clear_can_buffer(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.clear_can_buffer(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
                 self.usbcanfd_api.clear_can_buffer(context)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |context| {
-                self.usbcanfd_800u_api.clear_can_buffer(context)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.clear_can_buffer(context)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
             Err(CanError::NotSupportedError)
         }
@@ -384,21 +564,42 @@ impl ZCan for ZDriver {
                 self.usbcan_api.get_can_num(context, can_type)
             })
         } else if self.dev_type.is_usbcan_4e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_4e_api.get_can_num(context, can_type)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.get_can_num(context, can_type)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcan_8e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_8e_api.get_can_num(context, can_type)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.get_can_num(context, can_type)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
                 self.usbcanfd_api.get_can_num(context, can_type)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |context| {
-                self.usbcanfd_800u_api.get_can_num(context, can_type)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.get_can_num(context, can_type)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
             Err(CanError::NotSupportedError)
         }
@@ -416,21 +617,42 @@ impl ZCan for ZDriver {
                 self.usbcan_api.receive_can(context, size, timeout)
             })
         } else if self.dev_type.is_usbcan_4e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_4e_api.receive_can(context, size, timeout)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.receive_can(context, size, timeout)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcan_8e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_8e_api.receive_can(context, size, timeout)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.receive_can(context, size, timeout)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
                 self.usbcanfd_api.receive_can(context, size, timeout)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |context| {
-                self.usbcanfd_800u_api.receive_can(context, size, timeout)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.receive_can(context, size, timeout)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
             Err(CanError::NotSupportedError)
         }
@@ -442,21 +664,42 @@ impl ZCan for ZDriver {
                 self.usbcan_api.transmit_can(context, frames)
             })
         } else if self.dev_type.is_usbcan_4e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_4e_api.transmit_can(context, frames)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_4e_api.transmit_can(context, frames)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcan_8e_u() {
-            self.can_handler(channel, |context| {
-                self.usbcan_8e_api.transmit_can(context, frames)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcan_8e_api.transmit_can(context, frames)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
                 self.usbcanfd_api.transmit_can(context, frames)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |context| {
-                self.usbcanfd_800u_api.transmit_can(context, frames)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.transmit_can(context, frames)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
             Err(CanError::NotSupportedError)
         }
@@ -474,9 +717,16 @@ impl ZCan for ZDriver {
                 self.usbcanfd_api.receive_canfd(context, size, timeout)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |context| {
-                self.usbcanfd_800u_api.receive_canfd(context, size, timeout)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.receive_canfd(context, size, timeout)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
             Err(CanError::NotSupportedError)
         }
@@ -488,9 +738,16 @@ impl ZCan for ZDriver {
                 self.usbcanfd_api.transmit_canfd(context, frames)
             })
         } else if self.dev_type.is_usbcanfd_800u() {
-            self.can_handler(channel, |context| {
-                self.usbcanfd_800u_api.transmit_canfd(context, frames)
-            })
+            #[cfg(target_arch = "x86_64")]
+            {
+                self.can_handler(channel, |context| {
+                    self.usbcanfd_800u_api.transmit_canfd(context, frames)
+                })
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                Err(CanError::NotSupportedError)
+            }
         } else {
             Err(CanError::NotSupportedError)
         }
