@@ -483,7 +483,7 @@ impl ZCan for ZDriver {
                 Err(CanError::NotSupportedError)
             }
         } else {
-            return Err(CanError::NotSupportedError);
+            Err(CanError::NotSupportedError)
         }
     }
 
