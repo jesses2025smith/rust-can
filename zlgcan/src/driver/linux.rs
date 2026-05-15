@@ -157,14 +157,8 @@ impl ZDevice for ZDriver {
                             .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
 
-                self.usbcan_api
-                    .close(dev_hdl.device_context())
-                    .unwrap_or_else(|e| rsutil::warn!("{}", e));
-            } else if self.dev_type.is_usbcan_4e_u() {
-                for (idx, context) in cans {
-                    rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                     self.usbcan_4e_api
-                        .reset_can_chl(context)
+                        .close(dev_hdl.device_context())
                         .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 }
                 #[cfg(not(target_arch = "x86_64"))]
@@ -181,17 +175,7 @@ impl ZDevice for ZDriver {
                             .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
                     self.usbcan_8e_api
-                        .reset_can_chl(context)
-                        .unwrap_or_else(|e| rsutil::warn!("{}", e));
-                }
-                self.usbcan_8e_api
-                    .close(dev_hdl.device_context())
-                    .unwrap_or_else(|e| rsutil::warn!("{}", e));
-            } else if self.dev_type.is_usbcanfd() {
-                for (idx, context) in cans {
-                    rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
-                    self.usbcanfd_api
-                        .reset_can_chl(context)
+                        .close(dev_hdl.device_context())
                         .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 }
                 #[cfg(not(target_arch = "x86_64"))]
@@ -226,14 +210,8 @@ impl ZDevice for ZDriver {
                             .unwrap_or_else(|e| rsutil::warn!("{}", e));
                     }
 
-                self.usbcanfd_api
-                    .close(dev_hdl.device_context())
-                    .unwrap_or_else(|e| rsutil::warn!("{}", e));
-            } else if self.dev_type.is_usbcanfd_800u() {
-                for (idx, context) in cans {
-                    rsutil::info!("ZLGCAN - closing CAN channel: {}", *idx);
                     self.usbcanfd_800u_api
-                        .reset_can_chl(context)
+                        .close(dev_hdl.device_context())
                         .unwrap_or_else(|e| rsutil::warn!("{}", e));
                 }
                 #[cfg(not(target_arch = "x86_64"))]
@@ -321,9 +299,7 @@ impl ZCan for ZDriver {
                             dev_hdl.remove_can(channel);
                         }
                         self.usbcan_8e_api
-                            .reset_can_chl(chl_hdl)
-                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
-                        dev_hdl.remove_can(channel);
+                            .init_can_chl(&self.libpath, &mut context, &cfg)?;
                     }
                     #[cfg(not(target_arch = "x86_64"))]
                     {
@@ -352,9 +328,7 @@ impl ZCan for ZDriver {
                             &cfg,
                         )?;
                         self.usbcanfd_800u_api
-                            .reset_can_chl(chl_hdl)
-                            .unwrap_or_else(|e| rsutil::warn!("{}", e));
-                        dev_hdl.remove_can(channel);
+                            .init_can_chl(&self.libpath, &mut context, &cfg)?;
                     }
                     #[cfg(not(target_arch = "x86_64"))]
                     {
