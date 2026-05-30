@@ -5,14 +5,15 @@ use crate::utils;
 use crate::CanResult;
 use std::fmt::{Display, Formatter, Write};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum TimestampSource {
     System,
     Hardware,
+    #[default]
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Timestamp {
     pub nanos: u128,
     pub source: TimestampSource,

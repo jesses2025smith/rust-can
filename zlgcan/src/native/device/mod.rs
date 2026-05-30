@@ -2,6 +2,8 @@ include!("property.rs");
 include!("typedef.rs");
 
 use crate::native::constants::CANFD_STR;
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
 use rs_can::CanError;
 use std::{
     ffi::{c_uchar, c_ushort, CString},
@@ -13,12 +15,22 @@ const ID_LENGTH: usize = 40;
 const PAD_LENGTH: usize = 4;
 
 /// The information about derive device.
+#[cfg_attr(feature = "pyo3", pyclass(from_py_object))]
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct DeriveInfo {
     pub canfd: bool,
     pub channels: u8,
     // pub resistance: bool,
+}
+
+#[cfg(feature = "pyo3")]
+#[pymethods]
+impl DeriveInfo {
+    #[new]
+    fn py_new(canfd: bool, channels: u8) -> Self {
+        Self { canfd, channels }
+    }
 }
 
 #[repr(C)]
