@@ -46,7 +46,7 @@ impl ZCanApi for WinApi<'_> {
             }
             // set channel resistance status
             if dev_type.has_resistance() {
-                let state = cfg.resistance().unwrap_or(true) as u32;
+                let state = cfg.termination.unwrap_or(true) as u32;
                 let resistance_path = format!("{}/{}", channel, INTERNAL_RESISTANCE);
                 let resistance_path = CmdPath::new_path(resistance_path.as_str());
                 let value = CString::new(state.to_string())
@@ -70,7 +70,7 @@ impl ZCanApi for WinApi<'_> {
             }
 
             // set channel bitrate
-            let bitrate = cfg.bitrate();
+            let bitrate = cfg.nominal_bitrate;
             if dev_type.canfd_support() {
                 let abitrate_path = format!("{}/{}", channel, CANFD_ABIT_BAUD_RATE);
                 let abitrate_path = CmdPath::new_path(abitrate_path.as_str());
@@ -79,7 +79,7 @@ impl ZCanApi for WinApi<'_> {
                 self.set_value(context, &abitrate_path, value.as_ptr() as *const c_void)?;
                 match can_type {
                     ZCanChlType::CANFD_ISO | ZCanChlType::CANFD_NON_ISO => {
-                        let dbitrate = cfg.dbitrate().unwrap_or(bitrate);
+                        let dbitrate = cfg.data_bitrate.unwrap_or(bitrate);
                         let dbitrate_path = format!("{}/{}", channel, CANFD_DBIT_BAUD_RATE);
                         let dbitrate_path = CmdPath::new_path(dbitrate_path.as_str());
                         let value = CString::new(dbitrate.to_string())

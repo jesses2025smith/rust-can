@@ -17,6 +17,7 @@ name = "zlgcan_rs"
 async-trait = { workspace = true }
 dlopen2 = { workspace = true }
 log = { workspace = true }
+pyo3 = { workspace = true, features = ["extension-module"], optional = true }
 rs-can = { workspace = true }
 rsutil = { workspace = true, features = ["log"] }
 serde = { workspace = true, features = ["derive"] }

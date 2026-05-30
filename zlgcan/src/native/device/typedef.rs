@@ -1,7 +1,7 @@
 /// `typedef.rs` defined the zlgcan device type and some function supported feature.
-// use rs_can::CanError;
 
 #[allow(non_camel_case_types, dead_code)]
+#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ZCanDeviceType {
