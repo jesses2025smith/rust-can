@@ -2,11 +2,11 @@ use crate::native::{
     api::{WinApi, ZCloudApi, ZDeviceContext},
     cloud::{ZCloudGpsFrame, ZCloudServerInfo, ZCloudUserData},
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::CString;
 
 impl ZCloudApi for WinApi<'_> {
-    fn set_server(&self, server: ZCloudServerInfo) -> Result<(), CanError> {
+    fn set_server(&self, server: ZCloudServerInfo) -> CanResult<()> {
         unsafe {
             (self.ZCLOUD_SetServerInfo)(
                 server.http_url,
@@ -18,7 +18,7 @@ impl ZCloudApi for WinApi<'_> {
 
         Ok(())
     }
-    fn connect_server(&self, username: &str, password: &str) -> Result<(), CanError> {
+    fn connect_server(&self, username: &str, password: &str) -> CanResult<()> {
         let username = CString::new(username).map_err(|e| CanError::OtherError(e.to_string()))?;
         let password = CString::new(password).map_err(|e| CanError::OtherError(e.to_string()))?;
         match unsafe { (self.ZCLOUD_ConnectServer)(username.as_ptr(), password.as_ptr()) } {
@@ -29,10 +29,10 @@ impl ZCloudApi for WinApi<'_> {
             ))),
         }
     }
-    fn is_connected_server(&self) -> Result<bool, CanError> {
+    fn is_connected_server(&self) -> CanResult<bool> {
         unsafe { Ok((self.ZCLOUD_IsConnected)()) }
     }
-    fn disconnect_server(&self) -> Result<(), CanError> {
+    fn disconnect_server(&self) -> CanResult<()> {
         match unsafe { (self.ZCLOUD_DisconnectServer)() } {
             0 => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -41,7 +41,7 @@ impl ZCloudApi for WinApi<'_> {
             ))),
         }
     }
-    fn get_userdata(&self, update: i32) -> Result<ZCloudUserData, CanError> {
+    fn get_userdata(&self, update: i32) -> CanResult<ZCloudUserData> {
         unsafe {
             let data = (self.ZCLOUD_GetUserData)(update);
             if data.is_null() {
@@ -59,7 +59,7 @@ impl ZCloudApi for WinApi<'_> {
         context: &ZDeviceContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<ZCloudGpsFrame>, CanError> {
+    ) -> CanResult<Vec<ZCloudGpsFrame>> {
         let mut frames = Vec::new();
         frames.resize_with(size as usize, Default::default);
 

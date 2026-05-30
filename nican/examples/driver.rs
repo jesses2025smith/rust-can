@@ -1,4 +1,4 @@
-use nican_rs::{CanMessage, NiCan};
+use nican_rs::{NiCan, NiCanFrame};
 use rs_can::{CanDevice, CanFrame, CanId, ChannelConfig, DeviceBuilder};
 use std::time::Duration;
 
@@ -12,7 +12,8 @@ async fn main() -> anyhow::Result<()> {
     let data = vec![0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
     let mut count = 0;
     loop {
-        let mut msg = CanMessage::new(CanId::from(0x7DF), data.as_slice()).unwrap();
+        let mut msg =
+            NiCanFrame::new_can(CanId::try_from(0x7DF).unwrap(), data.as_slice()).unwrap();
         msg.set_channel(channel.into());
         device.transmit(msg, None).await?;
 

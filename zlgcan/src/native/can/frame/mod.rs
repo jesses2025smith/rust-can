@@ -12,7 +12,7 @@ pub(crate) use win::*;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub union ZCanFrame {
+pub union ZCanFrameUnion {
     pub(crate) can: ZCanFrameInner,
     pub(crate) canfd: ZCanFdFrameInner,
 }

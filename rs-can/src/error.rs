@@ -2,6 +2,15 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
 pub enum Error {
+    /// Error when identifier bits cannot be represented as a valid CAN identifier.
+    #[error("RUST-CAN - invalid identifier: {0}")]
+    InvalidIdentifier(u32),
+    /// Error when data length is invalid.
+    #[error("RUST-CAN - invalid dlc or data length: {0}")]
+    InvalidDLC(usize),
+    /// Error when frame shape or payload is invalid.
+    #[error("RUST-CAN - invalid frame: {0}")]
+    InvalidFrame(String),
     /// Error when operation like library loading, device or channel opening and so on.
     #[error("RUST-CAN - initialize error: {0}")]
     InitializeError(String),

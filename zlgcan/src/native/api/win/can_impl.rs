@@ -3,8 +3,8 @@ use crate::{
     native::{
         api::{WinApi, ZCanApi, ZChannelContext, ZDeviceApi},
         can::{
-            self, CanMessage, ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType,
-            ZCanFdFrameInner, ZCanFrame, ZCanFrameInner, ZCanFrameType,
+            self, ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFdFrameInner,
+            ZCanFrame, ZCanFrameInner, ZCanFrameType, ZCanFrameUnion,
         },
         constants::{
             BAUD_RATE, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, CLOCK, INTERNAL_RESISTANCE,
@@ -13,7 +13,7 @@ use crate::{
         device::{CmdPath, ZCanDeviceType},
     },
 };
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 use std::ffi::{c_void, CString};
 
 impl ZCanApi for WinApi<'_> {
@@ -22,7 +22,7 @@ impl ZCanApi for WinApi<'_> {
         libpath: &str,
         context: &mut ZChannelContext,
         cfg: &ChannelConfig,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let cfg_ctx = can::common::CanChlCfgContext::new(libpath)?;
         let dev_type = context.device.dev_type;
         let bc_ctx =
@@ -116,7 +116,7 @@ impl ZCanApi for WinApi<'_> {
         }
     }
 
-    fn reset_can_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn reset_can_chl(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_ResetCAN)(context.channel_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -126,7 +126,7 @@ impl ZCanApi for WinApi<'_> {
         }
     }
 
-    fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError> {
+    fn read_can_chl_status(&self, context: &ZChannelContext) -> CanResult<ZCanChlStatus> {
         let mut status: ZCanChlStatus = Default::default();
         match unsafe { (self.ZCAN_ReadChannelStatus)(context.channel_handler()?, &mut status) } {
             Self::STATUS_OK => Ok(status),
@@ -137,7 +137,7 @@ impl ZCanApi for WinApi<'_> {
         }
     }
 
-    fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError> {
+    fn read_can_chl_error(&self, context: &ZChannelContext) -> CanResult<ZCanChlError> {
         let mut info: ZCanChlError = ZCanChlError {
             v1: Default::default(),
         };
@@ -150,7 +150,7 @@ impl ZCanApi for WinApi<'_> {
         }
     }
 
-    fn clear_can_buffer(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn clear_can_buffer(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_ClearBuffer)(context.channel_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -160,11 +160,7 @@ impl ZCanApi for WinApi<'_> {
         }
     }
 
-    fn get_can_num(
-        &self,
-        context: &ZChannelContext,
-        can_type: ZCanFrameType,
-    ) -> Result<u32, CanError> {
+    fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> CanResult<u32> {
         let ret = unsafe { (self.ZCAN_GetReceiveNum)(context.channel_handler()?, can_type as u8) };
         if ret > 0 {
             rsutil::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
@@ -177,11 +173,11 @@ impl ZCanApi for WinApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let mut frames = Vec::new();
         frames.resize(
             size as usize,
-            ZCanFrame {
+            ZCanFrameUnion {
                 can: ZCanFrameInner {
                     rx: Default::default(),
                 },
@@ -221,14 +217,10 @@ impl ZCanApi for WinApi<'_> {
             .collect::<Vec<_>>())
     }
 
-    fn transmit_can(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<CanMessage>,
-    ) -> Result<u32, CanError> {
+    fn transmit_can(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|msg| ZCanFrame {
+            .map(|msg| ZCanFrameUnion {
                 can: ZCanFrameInner { tx: msg.into() },
             })
             .collect::<Vec<_>>();
@@ -264,11 +256,11 @@ impl ZCanApi for WinApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let mut frames = Vec::new();
         frames.resize(
             size as usize,
-            ZCanFrame {
+            ZCanFrameUnion {
                 canfd: ZCanFdFrameInner {
                     rx: Default::default(),
                 },
@@ -301,14 +293,10 @@ impl ZCanApi for WinApi<'_> {
             .collect::<Vec<_>>())
     }
 
-    fn transmit_canfd(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<CanMessage>,
-    ) -> Result<u32, CanError> {
+    fn transmit_canfd(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|msg| ZCanFrame {
+            .map(|msg| ZCanFrameUnion {
                 canfd: ZCanFdFrameInner { tx: msg.into() },
             })
             .collect::<Vec<_>>();

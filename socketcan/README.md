@@ -32,7 +32,7 @@ candump vcan0   # show vcan0 message
 
 ```rust
 use rs_can::{CanDevice, CanError, CanFrame, DeviceBuilder};
-use socketcan_rs::{CanMessage, SocketCan};
+use socketcan_rs::{SocketCanFrame, SocketCan};
 
 fn device_builder(iface: String) -> anyhow::Result<SocketCan, CanError> {
     let mut builder = DeviceBuilder::new();
@@ -49,7 +49,7 @@ async fn main() -> Result<(), CanError> {
 
     loop {
         let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
-        let mut message = CanMessage::new(0x1234, &data).unwrap();
+        let mut message = SocketCanFrame::new(0x1234, &data).unwrap();
         message.set_channel(iface.clone());
         match device1.transmit(message, None).await {
             Ok(()) => match device2.receive(iface.clone(), None).await {

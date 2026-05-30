@@ -1,13 +1,13 @@
 use crate::{
     c_timeval_new, raw_open_socket, raw_write_frame, set_fd_mode, set_socket_option,
-    set_socket_option_mult, CanAddr, CanAnyFrame, CanMessage,
+    set_socket_option_mult, CanAddr, CanAnyFrame, SocketCanFrame,
 };
 use libc::{
     can_filter, can_frame, canfd_frame, canxl_frame, fcntl, read, CAN_RAW_ERR_FILTER,
     CAN_RAW_FILTER, CAN_RAW_JOIN_FILTERS, CAN_RAW_LOOPBACK, CAN_RAW_RECV_OWN_MSGS, EINPROGRESS,
     F_GETFL, F_SETFL, O_NONBLOCK, SOL_CAN_RAW, SOL_SOCKET, SO_RCVTIMEO, SO_SNDTIMEO,
 };
-use rs_can::{CanDirect, CanError, CanFilter, CanFrame, ERR_MASK};
+use rs_can::{CanDirection, CanError, CanFilter, CanFrame, CanResult, ERR_MASK};
 use std::{
     collections::HashMap,
     io,
@@ -35,7 +35,7 @@ impl SocketCan {
         }
     }
 
-    pub fn init_channel(&mut self, channel: &str, canfd: bool) -> Result<(), CanError> {
+    pub fn init_channel(&mut self, channel: &str, canfd: bool) -> CanResult<()> {
         let addr =
             CanAddr::from_iface(channel).map_err(|e| CanError::InitializeError(e.to_string()))?;
 
@@ -55,7 +55,7 @@ impl SocketCan {
         Ok(())
     }
 
-    pub fn read(&self, channel: &str) -> Result<CanMessage, CanError> {
+    pub fn read(&self, channel: &str) -> CanResult<SocketCanFrame> {
         match self.sockets.get(channel) {
             Some(s) => {
                 let mut buffer = [0; XL_FRAME_SIZE];
@@ -70,20 +70,20 @@ impl SocketCan {
                 match rd as usize {
                     FRAME_SIZE => {
                         let frame = unsafe { *(&buffer as *const _ as *const can_frame) };
-                        let mut frame = CanMessage::from(CanAnyFrame::from(frame));
-                        frame.set_direct(CanDirect::Receive);
+                        let mut frame = SocketCanFrame::try_from(CanAnyFrame::from(frame))?;
+                        frame.set_direction(CanDirection::Receive);
                         Ok(frame)
                     }
                     FD_FRAME_SIZE => {
                         let frame = unsafe { *(&buffer as *const _ as *const canfd_frame) };
-                        let mut frame = CanMessage::from(CanAnyFrame::from(frame));
-                        frame.set_direct(CanDirect::Receive);
+                        let mut frame = SocketCanFrame::try_from(CanAnyFrame::from(frame))?;
+                        frame.set_direction(CanDirection::Receive);
                         Ok(frame)
                     }
                     XL_FRAME_SIZE => {
                         let frame = unsafe { *(&buffer as *const _ as *const canxl_frame) };
-                        let mut frame = CanMessage::from(CanAnyFrame::from(frame));
-                        frame.set_direct(CanDirect::Receive);
+                        let mut frame = SocketCanFrame::try_from(CanAnyFrame::from(frame))?;
+                        frame.set_direction(CanDirection::Receive);
                         Ok(frame)
                     }
                     _ => Err(CanError::OperationError(
@@ -96,7 +96,7 @@ impl SocketCan {
     }
 
     /// Blocking read a single can frame with timeout.
-    pub fn read_timeout(&self, channel: &str, timeout: Duration) -> Result<CanMessage, CanError> {
+    pub fn read_timeout(&self, channel: &str, timeout: Duration) -> CanResult<SocketCanFrame> {
         match self.sockets.get(channel) {
             Some(s) => {
                 use nix::poll::{poll, PollFd, PollFlags};
@@ -114,7 +114,7 @@ impl SocketCan {
         }
     }
 
-    pub fn write(&self, msg: CanMessage) -> Result<(), CanError> {
+    pub fn write(&self, msg: SocketCanFrame) -> CanResult<()> {
         let channel = msg.channel();
         match self.sockets.get(&channel) {
             Some(s) => {
@@ -124,9 +124,9 @@ impl SocketCan {
                         raw_write_frame(s.as_raw_fd(), &f, frame.size())
                             .map_err(|e| CanError::OtherError(e.to_string()))
                     }
-                    CanAnyFrame::Fd(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size())
+                    CanAnyFrame::FD(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size())
                         .map_err(|e| CanError::OtherError(e.to_string())),
-                    CanAnyFrame::Xl(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size())
+                    CanAnyFrame::XL(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size())
                         .map_err(|e| CanError::OtherError(e.to_string())),
                 }
             }
@@ -135,7 +135,7 @@ impl SocketCan {
     }
 
     /// Blocking write a single can frame, retrying until it gets sent successfully.
-    pub fn write_timeout(&self, msg: CanMessage, timeout: Duration) -> Result<(), CanError> {
+    pub fn write_timeout(&self, msg: SocketCanFrame, timeout: Duration) -> CanResult<()> {
         let channel = msg.channel();
         let frame: CanAnyFrame = msg.into();
         let start = Instant::now();
@@ -146,8 +146,8 @@ impl SocketCan {
                         CanAnyFrame::Normal(f) | CanAnyFrame::Remote(f) | CanAnyFrame::Error(f) => {
                             raw_write_frame(s.as_raw_fd(), &f, frame.size())
                         }
-                        CanAnyFrame::Fd(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size()),
-                        CanAnyFrame::Xl(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size()),
+                        CanAnyFrame::FD(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size()),
+                        CanAnyFrame::XL(f) => raw_write_frame(s.as_raw_fd(), &f, frame.size()),
                     } {
                         match e.kind() {
                             io::ErrorKind::WouldBlock => {}
@@ -171,7 +171,7 @@ impl SocketCan {
     }
 
     /// Change socket to non-blocking mode or back to blocking mode.
-    pub fn set_nonblocking(&self, channel: &str, nonblocking: bool) -> Result<(), CanError> {
+    pub fn set_nonblocking(&self, channel: &str, nonblocking: bool) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => {
                 // retrieve current flags
@@ -207,7 +207,7 @@ impl SocketCan {
     ///
     /// For convenience, the result value can be checked using
     /// `ShouldRetry::should_retry` when a timeout is set.
-    pub fn set_read_timeout(&self, channel: &str, duration: Duration) -> Result<(), CanError> {
+    pub fn set_read_timeout(&self, channel: &str, duration: Duration) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => set_socket_option(
                 s.as_raw_fd(),
@@ -221,7 +221,7 @@ impl SocketCan {
     }
 
     /// Sets the write timeout on the socket
-    pub fn set_write_timeout(&self, channel: &str, duration: Duration) -> Result<(), CanError> {
+    pub fn set_write_timeout(&self, channel: &str, duration: Duration) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => set_socket_option(
                 s.as_raw_fd(),
@@ -243,14 +243,20 @@ impl SocketCan {
     ///
     /// See `CanFilter` for details on how filtering works. By default, all
     /// single filter matching all incoming frames is installed.
-    pub fn set_filters(&self, channel: &str, filters: &[CanFilter]) -> Result<(), CanError> {
+    pub fn set_filters(&self, channel: &str, filters: &[CanFilter]) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => {
                 let filters: Vec<can_filter> = filters
                     .iter()
-                    .map(|&f| can_filter {
-                        can_id: f.can_id,
-                        can_mask: f.can_mask,
+                    .map(|&f| match f {
+                        CanFilter::Standard { id, mask } => can_filter {
+                            can_id: id.as_raw() as u32,
+                            can_mask: mask as u32,
+                        },
+                        CanFilter::Extended { id, mask } => can_filter {
+                            can_id: id.as_raw(),
+                            can_mask: mask,
+                        },
                     })
                     .collect();
                 set_socket_option_mult(s.as_raw_fd(), SOL_CAN_RAW, CAN_RAW_FILTER, &filters)
@@ -263,7 +269,7 @@ impl SocketCan {
     /// Disable reception of CAN frames.
     ///
     /// Sets a completely empty filter; disabling all CAN frame reception.
-    pub fn set_filter_drop_all(&self, channel: &str) -> Result<(), CanError> {
+    pub fn set_filter_drop_all(&self, channel: &str) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => {
                 let filters: &[CanFilter] = &[];
@@ -279,7 +285,7 @@ impl SocketCan {
     /// Replace the current filter with one containing a single rule that
     /// accepts all CAN frames.
     #[inline(always)]
-    pub fn set_filter_accept_all(&self, channel: &str) -> Result<(), CanError> {
+    pub fn set_filter_accept_all(&self, channel: &str) -> CanResult<()> {
         self.set_filters(channel, &[CanFilter::default()])
     }
 
@@ -289,7 +295,7 @@ impl SocketCan {
     /// special error frames by the socket. Enabling error conditions by
     /// setting `ERR_MASK_ALL` or another non-empty error mask causes the
     /// socket to receive notification about the specified conditions.
-    pub fn set_error_filter(&self, channel: &str, mask: u32) -> Result<(), CanError> {
+    pub fn set_error_filter(&self, channel: &str, mask: u32) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => set_socket_option(s.as_raw_fd(), SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &mask)
                 .map_err(|e| CanError::OperationError(e.to_string())),
@@ -299,13 +305,13 @@ impl SocketCan {
 
     /// Sets the error mask on the socket to reject all errors.
     #[inline(always)]
-    pub fn set_error_filter_drop_all(&self, channel: &str) -> Result<(), CanError> {
+    pub fn set_error_filter_drop_all(&self, channel: &str) -> CanResult<()> {
         self.set_error_filter(channel, 0)
     }
 
     /// Sets the error mask on the socket to accept all errors.
     #[inline(always)]
-    pub fn set_error_filter_accept_all(&self, channel: &str) -> Result<(), CanError> {
+    pub fn set_error_filter_accept_all(&self, channel: &str) -> CanResult<()> {
         self.set_error_filter(channel, ERR_MASK)
     }
 
@@ -314,7 +320,7 @@ impl SocketCan {
     /// By default, loopback is enabled, causing other applications that open
     /// the same CAN bus to see frames emitted by different applications on
     /// the same system.
-    pub fn set_loopback(&self, channel: &str, enabled: bool) -> Result<(), CanError> {
+    pub fn set_loopback(&self, channel: &str, enabled: bool) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => {
                 let loopback = c_int::from(enabled);
@@ -329,7 +335,7 @@ impl SocketCan {
     ///
     /// When loopback is enabled, this settings controls if CAN frames sent
     /// are received back immediately by sender. Default is off.
-    pub fn set_recv_own_msgs(&self, channel: &str, enabled: bool) -> Result<(), CanError> {
+    pub fn set_recv_own_msgs(&self, channel: &str, enabled: bool) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => {
                 let recv_own_msgs = c_int::from(enabled);
@@ -350,7 +356,7 @@ impl SocketCan {
     /// By default a frame is accepted if it matches any of the filters set
     /// with `set_filters`. If join filters is enabled, a frame has to match
     /// _all_ filters to be accepted.
-    pub fn set_join_filters(&self, channel: &str, enabled: bool) -> Result<(), CanError> {
+    pub fn set_join_filters(&self, channel: &str, enabled: bool) -> CanResult<()> {
         match self.sockets.get(channel) {
             Some(s) => {
                 let join_filters = c_int::from(enabled);

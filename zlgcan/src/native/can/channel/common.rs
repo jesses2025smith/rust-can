@@ -5,7 +5,7 @@ use crate::{
         ZCanFilterType,
     },
 };
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 use serde::Deserialize;
 use std::{
     collections::HashMap,
@@ -68,7 +68,7 @@ pub(crate) struct BitrateCtx {
 pub(crate) struct CanChlCfgContext(pub(crate) HashMap<String, BitrateCtx>);
 
 impl CanChlCfgContext {
-    pub fn new(libpath: &str) -> Result<Self, CanError> {
+    pub fn new(libpath: &str) -> CanResult<Self> {
         let mut path = PathBuf::from(libpath);
         path.push(BITRATE_CFG_FILENAME);
         let data = read_to_string(&path)
@@ -115,8 +115,8 @@ impl ZCanChlCfgInner {
         }
     }
 
-    pub(crate) fn try_from_with(ctx: &BitrateCtx, cfg: &ChannelConfig) -> Result<Self, CanError> {
-        let bitrate = cfg.bitrate();
+    pub(crate) fn try_from_with(ctx: &BitrateCtx, cfg: &ChannelConfig) -> CanResult<Self> {
+        let bitrate = cfg.nominal_bitrate;
         match ctx.bitrate.get(&bitrate.to_string()) {
             Some(v) => {
                 let &timing0 = v.get(TIMING0).ok_or(CanError::OtherError(format!(
@@ -173,7 +173,7 @@ impl ZCanFdChlCfgInner {
         acc_code: Option<u32>,
         acc_mask: Option<u32>,
         brp: Option<u32>,
-    ) -> Result<Self, CanError> {
+    ) -> CanResult<Self> {
         Ok(Self {
             acc_code: acc_code.unwrap_or(0),
             acc_mask: acc_mask.unwrap_or(0xFFFFFFFF),

@@ -21,7 +21,7 @@ use crate::{
         device::ZCanDeviceType,
     },
 };
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 use std::{
     collections::HashMap,
     ffi::{c_uchar, c_uint, c_ushort},
@@ -99,11 +99,11 @@ impl ZCanChlCfg {
         can_type: ZCanChlType,
         ctx: &BitrateCtx,
         cfg: &ChannelConfig,
-    ) -> Result<Self, CanError> {
+    ) -> CanResult<Self> {
         if dev_type.canfd_support() {
             let (timing0, timing1) = match dev_type {
                 ZCanDeviceType::ZCAN_USBCANFD_800U => {
-                    let (aset, dset) = get_fd_set(cfg.bitrate(), cfg.dbitrate(), ctx)?;
+                    let (aset, dset) = get_fd_set(cfg.nominal_bitrate, cfg.data_bitrate, ctx)?;
                     let timing0 = aset.get_timing(); // 4458527 = 0x44081f
                     let timing1 = dset.get_timing(); // 4260357 = 0x410205
                     (timing0, timing1)
@@ -144,7 +144,7 @@ pub(crate) fn get_fd_set(
     bitrate: u32,
     dbitrate: Option<u32>,
     ctx: &BitrateCtx,
-) -> Result<(ZCanFdChlCfgSet, ZCanFdChlCfgSet), CanError> {
+) -> CanResult<(ZCanFdChlCfgSet, ZCanFdChlCfgSet)> {
     let bitrate_ctx = &ctx.bitrate;
     let dbitrate_ctx = &ctx.data_bitrate;
     let aset = bitrate_ctx

@@ -7,10 +7,10 @@
 // include!(concat!(env!("OUT_DIR"), "/nican.rs"));
 include!("generator/nican.rs");
 
-use crate::CanMessage;
-use rs_can::{CanDirect, CanError, CanFrame, CanId, MAX_FRAME_SIZE};
+use crate::NiCanFrame;
+use rs_can::{CanDirection, CanError, CanFrame, CanId, Timestamp, TimestampSource, MAX_FRAME_SIZE};
 
-impl Into<NCTYPE_CAN_FRAME> for CanMessage {
+impl Into<NCTYPE_CAN_FRAME> for NiCanFrame {
     fn into(self) -> NCTYPE_CAN_FRAME {
         let mut arb_id = self.id().as_raw();
         if self.is_extended() {
@@ -32,10 +32,10 @@ impl Into<NCTYPE_CAN_FRAME> for CanMessage {
     }
 }
 
-impl TryInto<CanMessage> for NCTYPE_CAN_STRUCT {
+impl TryInto<NiCanFrame> for NCTYPE_CAN_STRUCT {
     type Error = CanError;
 
-    fn try_into(self) -> Result<CanMessage, Self::Error> {
+    fn try_into(self) -> Result<NiCanFrame, Self::Error> {
         let is_remote_frame = self.FrameType == NC_FRMTYPE_REMOTE as u8;
         let is_error_frame = self.FrameType == NC_FRMTYPE_COMM_ERR as u8;
         let arb_id = self.ArbitrationId as u32;
@@ -43,24 +43,31 @@ impl TryInto<CanMessage> for NCTYPE_CAN_STRUCT {
         let dlc = self.DataLength;
         let timestamp = (self.Timestamp.HighPart as u64) << 32 | (self.Timestamp.LowPart as u64);
 
-        let mut msg = if is_remote_frame {
-            CanMessage::new_remote(CanId::from_bits(arb_id, Some(is_extended)), dlc as usize)
-        } else {
-            CanMessage::new(
-                CanId::from_bits(arb_id, Some(is_extended)),
-                self.Data.as_slice(),
-            )
+        if is_error_frame {
+            return Err(CanError::InvalidFrame(
+                "NI-CAN communication error frame is not supported by NiCanFrame".into(),
+            ));
         }
-        .ok_or(CanError::OtherError(format!(
-            "length of data is rather than {}",
-            MAX_FRAME_SIZE
-        )))?;
 
-        msg.set_direct(CanDirect::Receive)
-            .set_timestamp(Some(
-                (1000. * (timestamp as f64 / 10000000. - 11644473600.)) as u64,
-            ))
-            .set_error_frame(is_error_frame);
+        let id = CanId::from_bits(arb_id, Some(is_extended))?;
+        let mut msg = if is_remote_frame {
+            NiCanFrame::new_remote(id, dlc)
+        } else {
+            NiCanFrame::new_can(id, &self.Data[..dlc as usize])
+        }
+        .map_err(|_| {
+            CanError::InvalidFrame(format!("length of data is rather than {}", MAX_FRAME_SIZE))
+        })?;
+
+        let filetime_100ns: u128 = timestamp as u128;
+        let epoch_diff_100ns: u128 = 11_644_473_600u128 * 10_000_000u128;
+        let nanos = filetime_100ns.saturating_sub(epoch_diff_100ns) * 100u128;
+
+        msg.set_direction(CanDirection::Receive)
+            .set_timestamp(Some(Timestamp {
+                nanos,
+                source: TimestampSource::Hardware,
+            }));
 
         Ok(msg)
     }

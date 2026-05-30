@@ -1,6 +1,6 @@
-use crate::native::can::CanMessage;
+use crate::native::can::ZCanFrame;
 use rs_can::{
-    can_utils, CanDirect, CanError, CanFdFlags, CanType, IdentifierFlags, DEFAULT_PADDING,
+    can_utils, CanDirection, CanError, CanFdFlags, CanKind, IdentifierFlags, DEFAULT_PADDING,
     EFF_MASK, MAX_FRAME_SIZE,
 };
 use std::{
@@ -119,16 +119,17 @@ impl<const S: usize> Default for ZCanMsg20<S> {
     }
 }
 
-impl<const S: usize> Into<CanMessage> for ZCanMsg20<S> {
-    fn into(self) -> CanMessage {
-        let can_type = can_utils::can_type(S).unwrap();
+impl<const S: usize> Into<ZCanFrame> for ZCanMsg20<S> {
+    fn into(self) -> ZCanFrame {
+        #[allow(deprecated)]
+        let kind = can_utils::can_kind_by_len(S).unwrap();
 
         let can_id = self.can_id;
         let length = self.can_len as usize;
         let mut data = self.data.to_vec();
         data.resize(length, Default::default());
-        CanMessage {
-            timestamp: Default::default(),
+        ZCanFrame {
+            timestamp: None,
             arbitration_id: can_id & EFF_MASK,
             is_extended_id: (can_id & IdentifierFlags::EXTENDED.bits()) > 0,
             is_remote_frame: (can_id & IdentifierFlags::REMOTE.bits()) > 0,
@@ -136,29 +137,29 @@ impl<const S: usize> Into<CanMessage> for ZCanMsg20<S> {
             channel: self.__res0,
             length,
             data,
-            can_type,
-            direct: CanDirect::Receive,
-            bitrate_switch: match can_type {
-                CanType::Can => false,
-                CanType::CanFd => self.flags & CanFdFlags::BRS.bits() > 0,
-                CanType::CanXl => todo!(),
+            kind,
+            direction: CanDirection::Receive,
+            bitrate_switch: match kind {
+                CanKind::Classical => false,
+                CanKind::FD => self.flags & CanFdFlags::BRS.bits() > 0,
+                CanKind::XL => todo!("XL is not supported!"),
             },
-            error_state_indicator: match can_type {
-                CanType::Can => false,
-                CanType::CanFd => self.flags & CanFdFlags::ESI.bits() > 0,
-                CanType::CanXl => todo!(),
+            error_state_indicator: match kind {
+                CanKind::Classical => false,
+                CanKind::FD => self.flags & CanFdFlags::ESI.bits() > 0,
+                CanKind::XL => todo!("XL is not supported!"),
             },
             tx_mode: None,
         }
     }
 }
 
-impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
-    fn from(msg: CanMessage) -> Self {
+impl<const S: usize> From<ZCanFrame> for ZCanMsg20<S> {
+    fn from(msg: ZCanFrame) -> Self {
         let is_fd = S > MAX_FRAME_SIZE;
 
         let can_id = can_id_add_flags(&msg);
-        let length = msg.data.len() as u8;
+        let length = msg.length as u8;
         let flags = if is_fd {
             (if msg.bitrate_switch {
                 CanFdFlags::BRS.bits()
@@ -180,7 +181,7 @@ impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
 }
 
 // pub(crate) type ZCanChlError = ZCanChlErrorInner;
-fn can_id_add_flags(msg: &CanMessage) -> u32 {
+fn can_id_add_flags(msg: &ZCanFrame) -> u32 {
     msg.arbitration_id
         | if msg.is_extended_id {
             IdentifierFlags::EXTENDED.bits()
@@ -197,4 +198,23 @@ fn can_id_add_flags(msg: &CanMessage) -> u32 {
         } else {
             Default::default()
         }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rs_can::{CanFrame, CanId, StandardId};
+
+    #[test]
+    fn remote_frame_round_trip_preserves_dlc() {
+        let id = CanId::Standard(StandardId::new(0x123).unwrap());
+        let msg = ZCanFrame::new_remote(id, 8).unwrap();
+
+        let native: ZCanMsg20<8> = msg.into();
+        assert_eq!(native.can_len, 8);
+
+        let round_trip: ZCanFrame = native.into();
+        assert!(round_trip.is_remote_frame);
+        assert_eq!(round_trip.length, 8);
+    }
 }

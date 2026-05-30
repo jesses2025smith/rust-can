@@ -6,14 +6,14 @@ use crate::{
         api::{
             USBCANApi, USBCANFDApi, ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext, ZLinApi,
         },
-        can::{CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrameType},
+        can::{ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanFrameType},
         device::{DeriveInfo, ZCanDeviceType, ZDeviceInfo},
         lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe},
         util::get_libpath,
     },
 };
 use dlopen2::symbor::Container;
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 use std::{path::PathBuf, sync::Arc};
 
 #[derive(Clone)]
@@ -34,12 +34,12 @@ pub struct ZDriver {
 }
 
 impl ZDevice for ZDriver {
-    fn new(
+    fn native(
         libpath: String,
         dev_type: ZCanDeviceType,
         dev_idx: u32,
         derive: Option<DeriveInfo>,
-    ) -> Result<Self, CanError> {
+    ) -> CanResult<Self> {
         let path = PathBuf::from(&libpath);
         Ok(Self {
             libpath,
@@ -81,7 +81,7 @@ impl ZDevice for ZDriver {
         self.dev_idx
     }
 
-    fn open(&mut self) -> Result<(), CanError> {
+    fn open(&mut self) -> CanResult<()> {
         let mut context = ZDeviceContext::new(self.dev_type, self.dev_idx, self.derive.is_some());
         let dev_info: ZDeviceInfo;
         if self.dev_type.is_usbcan() {
@@ -226,7 +226,7 @@ impl ZDevice for ZDriver {
         }
     }
 
-    fn device_info(&self) -> Result<&ZDeviceInfo, CanError> {
+    fn device_info(&self) -> CanResult<&ZDeviceInfo> {
         match &self.handler {
             Some(v) => Ok(v.device_info()),
             None => Err(CanError::device_not_opened()),
@@ -238,13 +238,13 @@ impl ZDevice for ZDriver {
     }
 
     #[inline]
-    fn timestamp(&self, channel: u8) -> Result<u64, CanError> {
+    fn timestamp(&self, channel: u8) -> CanResult<u64> {
         self.can_handler(channel, |context| Ok(context.timestamp))
     }
 }
 
 impl ZCan for ZDriver {
-    fn init_can_chl(&mut self, channel: u8, cfg: &ChannelConfig) -> Result<(), CanError> {
+    fn init_can_chl(&mut self, channel: u8, cfg: &ChannelConfig) -> CanResult<()> {
         match &mut self.handler {
             Some(dev_hdl) => {
                 let dev_info = dev_hdl.device_info();
@@ -345,7 +345,7 @@ impl ZCan for ZDriver {
         }
     }
 
-    fn reset_can_chl(&mut self, channel: u8) -> Result<(), CanError> {
+    fn reset_can_chl(&mut self, channel: u8) -> CanResult<()> {
         match &mut self.handler {
             Some(dev_hdl) => match dev_hdl.find_can(channel) {
                 Some(context) => {
@@ -393,7 +393,7 @@ impl ZCan for ZDriver {
         }
     }
 
-    fn read_can_chl_status(&self, channel: u8) -> Result<ZCanChlStatus, CanError> {
+    fn read_can_chl_status(&self, channel: u8) -> CanResult<ZCanChlStatus> {
         if self.dev_type.is_usbcan() {
             self.can_handler(channel, |context| {
                 self.usbcan_api.read_can_chl_status(context)
@@ -440,7 +440,7 @@ impl ZCan for ZDriver {
         }
     }
 
-    fn read_can_chl_error(&self, channel: u8) -> Result<ZCanChlError, CanError> {
+    fn read_can_chl_error(&self, channel: u8) -> CanResult<ZCanChlError> {
         if self.dev_type.is_usbcan() {
             self.can_handler(channel, |context| {
                 self.usbcan_api.read_can_chl_error(context)
@@ -487,7 +487,7 @@ impl ZCan for ZDriver {
         }
     }
 
-    fn clear_can_buffer(&self, channel: u8) -> Result<(), CanError> {
+    fn clear_can_buffer(&self, channel: u8) -> CanResult<()> {
         if self.dev_type.is_usbcan() {
             self.can_handler(channel, |context| self.usbcan_api.clear_can_buffer(context))
         } else if self.dev_type.is_usbcan_4e_u() {
@@ -532,7 +532,7 @@ impl ZCan for ZDriver {
         }
     }
 
-    fn get_can_num(&self, channel: u8, can_type: ZCanFrameType) -> Result<u32, CanError> {
+    fn get_can_num(&self, channel: u8, can_type: ZCanFrameType) -> CanResult<u32> {
         if self.dev_type.is_usbcan() {
             self.can_handler(channel, |context| {
                 self.usbcan_api.get_can_num(context, can_type)
@@ -584,7 +584,7 @@ impl ZCan for ZDriver {
         channel: u8,
         size: u32,
         timeout: Option<u32>,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let timeout = timeout.unwrap_or(u32::MAX);
         if self.dev_type.is_usbcan() {
             self.can_handler(channel, |context| {
@@ -632,7 +632,7 @@ impl ZCan for ZDriver {
         }
     }
 
-    fn transmit_can(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, CanError> {
+    fn transmit_can(&self, channel: u8, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         if self.dev_type.is_usbcan() {
             self.can_handler(channel, |context| {
                 self.usbcan_api.transmit_can(context, frames)
@@ -684,7 +684,7 @@ impl ZCan for ZDriver {
         channel: u8,
         size: u32,
         timeout: Option<u32>,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let timeout = timeout.unwrap_or(u32::MAX);
         if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
@@ -706,7 +706,7 @@ impl ZCan for ZDriver {
         }
     }
 
-    fn transmit_canfd(&self, channel: u8, frames: Vec<CanMessage>) -> Result<u32, CanError> {
+    fn transmit_canfd(&self, channel: u8, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         if self.dev_type.is_usbcanfd() {
             self.can_handler(channel, |context| {
                 self.usbcanfd_api.transmit_canfd(context, frames)
@@ -729,7 +729,7 @@ impl ZCan for ZDriver {
 }
 
 impl ZLin for ZDriver {
-    fn init_lin_chl(&mut self, channel: u8, cfg: ZLinChlCfg) -> Result<(), CanError> {
+    fn init_lin_chl(&mut self, channel: u8, cfg: ZLinChlCfg) -> CanResult<()> {
         match &mut self.handler {
             Some(dev_hdl) => {
                 let channels = 2; //dev_info.lin_channels();  // TODO
@@ -760,7 +760,7 @@ impl ZLin for ZDriver {
         }
     }
 
-    fn reset_lin_chl(&mut self, channel: u8) -> Result<(), CanError> {
+    fn reset_lin_chl(&mut self, channel: u8) -> CanResult<()> {
         match &mut self.handler {
             Some(dev_hdl) => match dev_hdl.find_lin(channel) {
                 Some(context) => {
@@ -776,7 +776,7 @@ impl ZLin for ZDriver {
         }
     }
 
-    fn clear_lin_buffer(&self, channel: u8) -> Result<(), CanError> {
+    fn clear_lin_buffer(&self, channel: u8) -> CanResult<()> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| {
                 self.usbcanfd_api.clear_lin_buffer(context)
@@ -786,7 +786,7 @@ impl ZLin for ZDriver {
         }
     }
 
-    fn get_lin_num(&self, channel: u8) -> Result<u32, CanError> {
+    fn get_lin_num(&self, channel: u8) -> CanResult<u32> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| self.usbcanfd_api.get_lin_num(context))
         } else {
@@ -799,7 +799,7 @@ impl ZLin for ZDriver {
         channel: u8,
         size: u32,
         timeout: Option<u32>,
-    ) -> Result<Vec<ZLinFrame>, CanError> {
+    ) -> CanResult<Vec<ZLinFrame>> {
         let timeout = timeout.unwrap_or(u32::MAX);
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| {
@@ -810,7 +810,7 @@ impl ZLin for ZDriver {
         }
     }
 
-    fn transmit_lin(&self, channel: u8, frames: Vec<ZLinFrame>) -> Result<u32, CanError> {
+    fn transmit_lin(&self, channel: u8, frames: Vec<ZLinFrame>) -> CanResult<u32> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| {
                 self.usbcanfd_api.transmit_lin(context, frames)
@@ -820,7 +820,7 @@ impl ZLin for ZDriver {
         }
     }
 
-    fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>) -> Result<(), CanError> {
+    fn set_lin_subscribe(&self, channel: u8, cfg: Vec<ZLinSubscribe>) -> CanResult<()> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| {
                 self.usbcanfd_api.set_lin_subscribe(context, cfg)
@@ -830,7 +830,7 @@ impl ZLin for ZDriver {
         }
     }
 
-    fn set_lin_publish(&self, channel: u8, cfg: Vec<ZLinPublish>) -> Result<(), CanError> {
+    fn set_lin_publish(&self, channel: u8, cfg: Vec<ZLinPublish>) -> CanResult<()> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| {
                 self.usbcanfd_api.set_lin_publish(context, cfg)
@@ -840,7 +840,7 @@ impl ZLin for ZDriver {
         }
     }
 
-    fn wakeup_lin(&self, channel: u8) -> Result<(), CanError> {
+    fn wakeup_lin(&self, channel: u8) -> CanResult<()> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| self.usbcanfd_api.wakeup_lin(context))
         } else {
@@ -849,7 +849,7 @@ impl ZLin for ZDriver {
     }
 
     #[allow(deprecated)]
-    fn set_lin_slave_msg(&self, channel: u8, msg: Vec<ZLinFrame>) -> Result<(), CanError> {
+    fn set_lin_slave_msg(&self, channel: u8, msg: Vec<ZLinFrame>) -> CanResult<()> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| {
                 self.usbcanfd_api.set_lin_slave_msg(context, msg)
@@ -860,7 +860,7 @@ impl ZLin for ZDriver {
     }
 
     #[allow(deprecated)]
-    fn clear_lin_slave_msg(&self, channel: u8, pids: Vec<u8>) -> Result<(), CanError> {
+    fn clear_lin_slave_msg(&self, channel: u8, pids: Vec<u8>) -> CanResult<()> {
         if self.dev_type.is_usbcanfd() && self.dev_type.lin_support() {
             self.lin_handler(channel, |context| {
                 self.usbcanfd_api.clear_lin_slave_msg(context, pids)

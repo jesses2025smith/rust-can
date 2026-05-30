@@ -1,27 +1,49 @@
 pub(crate) mod identifier;
 
-use self::identifier::Id;
-use crate::utils::can_dlc;
+use self::identifier::{CanFdFlags, Id};
+use crate::utils;
+use crate::CanResult;
 use std::fmt::{Display, Formatter, Write};
 
-#[repr(C)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Type {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimestampSource {
+    System,
+    Hardware,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Timestamp {
+    pub nanos: u128,
+    pub source: TimestampSource,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum FrameFormat {
     #[default]
-    Can,
-    CanFd,
-    CanXl,
+    Data,
+    Remote,
+    Error,
 }
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Direct {
+pub enum Kind {
+    #[default]
+    Classical,
+    FD,
+    XL,
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Direction {
     #[default]
     Transmit,
     Receive,
 }
 
-impl Display for Direct {
+impl Display for Direction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Transmit => f.write_str("Tx"),
@@ -34,73 +56,64 @@ impl Display for Direct {
 pub trait Frame: Send + Sync {
     type Channel: Display;
 
-    fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self>
+    fn new_can(id: Id, data: &[u8]) -> CanResult<Self>
     where
         Self: Sized;
 
-    fn new_remote(id: impl Into<Id>, len: usize) -> Option<Self>
+    fn new_remote(id: Id, dlc: u8) -> CanResult<Self>
     where
         Self: Sized;
 
-    fn timestamp(&self) -> u64;
-
-    fn set_timestamp(&mut self, value: Option<u64>) -> &mut Self
+    fn new_can_fd(id: Id, data: &[u8], flags: CanFdFlags) -> CanResult<Self>
     where
         Self: Sized;
 
-    /// Prioritizes returning J1939Id if j1939 is true.
     fn id(&self) -> Id;
-
-    fn can_type(&self) -> Type;
-
-    fn set_can_type(&mut self, r#type: Type) -> &mut Self
+    fn channel(&self) -> Self::Channel;
+    fn set_channel(&mut self, v: Self::Channel) -> &mut Self
     where
         Self: Sized;
 
-    fn is_remote(&self) -> bool;
+    fn kind(&self) -> Kind;
+    fn format(&self) -> FrameFormat;
 
-    fn is_extended(&self) -> bool;
+    fn data(&self) -> &[u8];
+    fn len(&self) -> usize;
+    fn dlc(&self) -> CanResult<u8> {
+        utils::can_dlc(self.len(), self.kind())
+    }
 
-    fn direct(&self) -> Direct;
+    fn direction(&self) -> Direction;
+    fn set_direction(&mut self, d: Direction) -> &mut Self
+    where
+        Self: Sized;
 
-    fn set_direct(&mut self, direct: Direct) -> &mut Self
+    fn timestamp(&self) -> Option<Timestamp>;
+    fn set_timestamp(&mut self, ts: Option<Timestamp>) -> &mut Self
     where
         Self: Sized;
 
     fn is_bitrate_switch(&self) -> bool;
-
-    fn set_bitrate_switch(&mut self, value: bool) -> &mut Self
+    fn set_bitrate_switch(&mut self, v: bool) -> &mut Self
     where
         Self: Sized;
 
-    fn is_error_frame(&self) -> bool;
-
-    fn set_error_frame(&mut self, value: bool) -> &mut Self
-    where
-        Self: Sized;
-
-    /// Error state indicator
-    fn is_esi(&self) -> bool;
-
-    /// Set error state indicator
-    fn set_esi(&mut self, value: bool) -> &mut Self
-    where
-        Self: Sized;
-
-    fn channel(&self) -> Self::Channel;
-
-    fn set_channel(&mut self, value: Self::Channel) -> &mut Self
-    where
-        Self: Sized;
-
-    /// ensure return the actual length of data.
-    fn data(&self) -> &[u8];
-
-    fn dlc(&self) -> isize {
-        can_dlc(self.length(), self.can_type())
+    fn is_remote(&self) -> bool {
+        matches!(self.format(), FrameFormat::Remote)
     }
 
-    fn length(&self) -> usize;
+    fn is_error_frame(&self) -> bool {
+        matches!(self.format(), FrameFormat::Error)
+    }
+
+    fn is_extended(&self) -> bool {
+        matches!(self.id(), Id::Extended(_))
+    }
+
+    fn is_esi(&self) -> bool;
+    fn set_esi(&mut self, v: bool) -> &mut Self
+    where
+        Self: Sized;
 }
 
 impl<T: Display> Display for dyn Frame<Channel = T> {
@@ -115,30 +128,39 @@ impl<T: Display> Display for dyn Frame<Channel = T> {
             })
         };
 
-        match self.can_type() {
-            Type::Can => {
+        match self.kind() {
+            Kind::Classical => {
+                let timestamp_secs = self
+                    .timestamp()
+                    .map(|ts| ts.nanos as f64 / 1_000_000_000.)
+                    .unwrap_or_default();
                 write!(
                     f,
                     "{:.3} {} {}{: <4} {} {} {} {}",
-                    self.timestamp() as f64 / 1000.,
+                    timestamp_secs,
                     self.channel(),
                     format!("{: >8x}", self.id().as_raw()),
                     if self.is_extended() { "x" } else { "" },
-                    self.direct(),
+                    self.direction(),
                     // if self.is_rx() { "Rx" } else { "Tx" },
                     if self.is_remote() { "r" } else { "d" },
-                    format!("{: >2}", self.length()),
+                    format!("{: >2}", self.len()),
                     data_str,
                 )
             }
-            Type::CanFd => {
+            Kind::FD => {
+                let timestamp_secs = self
+                    .timestamp()
+                    .map(|ts| ts.nanos as f64 / 1_000_000_000.)
+                    .unwrap_or_default();
+                let dlc = self.dlc().map_err(|_| std::fmt::Error)?;
                 let mut flags = 1 << 12;
                 write!(
                     f,
                     "{:.3} CANFD {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}",
-                    self.timestamp() as f64 / 1000.,
+                    timestamp_secs,
                     self.channel(),
-                    self.direct(),
+                    self.direction(),
                     // if self.is_rx() { "Rx" } else { "Tx" },
                     format!("{: >8x}", self.id().as_raw()),
                     if self.is_bitrate_switch() {
@@ -153,8 +175,8 @@ impl<T: Display> Display for dyn Frame<Channel = T> {
                     } else {
                         0
                     },
-                    format!("{: >2}", self.dlc()),
-                    format!("{: >2}", self.length()),
+                    format!("{: >2}", dlc),
+                    format!("{: >2}", self.len()),
                     data_str,
                     format!("{: >8}", 0), // message_duration
                     format!("{: <4}", 0), // message_length
@@ -166,7 +188,7 @@ impl<T: Display> Display for dyn Frame<Channel = T> {
                     format!("{: >8}", 0), // bit_timing_conf_ext_data
                 )
             }
-            Type::CanXl => {
+            Kind::XL => {
                 // TODO
                 write!(f, "CANXL Frame")
             }

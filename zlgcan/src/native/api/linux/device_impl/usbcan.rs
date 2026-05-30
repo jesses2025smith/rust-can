@@ -2,11 +2,11 @@ use crate::native::{
     api::{USBCANApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
     device::{CmdPath, ZDeviceInfo},
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::c_void;
 
 impl ZDeviceApi for USBCANApi<'_> {
-    fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
+    fn open(&self, context: &mut ZDeviceContext) -> CanResult<()> {
         let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         match unsafe { (self.VCI_OpenDevice)(dev_type as u32, dev_idx, 0) } {
             Self::STATUS_OK => Ok(()),
@@ -17,7 +17,7 @@ impl ZDeviceApi for USBCANApi<'_> {
         }
     }
 
-    fn close(&self, context: &ZDeviceContext) -> Result<(), CanError> {
+    fn close(&self, context: &ZDeviceContext) -> CanResult<()> {
         let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         match unsafe { (self.VCI_CloseDevice)(dev_type as u32, dev_idx) } {
             Self::STATUS_OK => Ok(()),
@@ -28,7 +28,7 @@ impl ZDeviceApi for USBCANApi<'_> {
         }
     }
 
-    fn read_device_info(&self, context: &ZDeviceContext) -> Result<ZDeviceInfo, CanError> {
+    fn read_device_info(&self, context: &ZDeviceContext) -> CanResult<ZDeviceInfo> {
         let mut info = ZDeviceInfo::default();
         let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         match unsafe { (self.VCI_ReadBoardInfo)(dev_type as u32, dev_idx, &mut info) } {
@@ -45,7 +45,7 @@ impl ZDeviceApi for USBCANApi<'_> {
         context: &ZChannelContext,
         cmd_path: &CmdPath,
         value: *const c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -68,7 +68,7 @@ impl ZDeviceApi for USBCANApi<'_> {
         context: &ZChannelContext,
         cmd_path: &CmdPath,
         value: *mut c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,

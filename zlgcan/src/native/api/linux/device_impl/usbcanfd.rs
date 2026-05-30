@@ -2,11 +2,11 @@ use crate::native::{
     api::{USBCANFDApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
     device::{CmdPath, ZDeviceInfo},
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::c_void;
 
 impl ZDeviceApi for USBCANFDApi<'_> {
-    fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
+    fn open(&self, context: &mut ZDeviceContext) -> CanResult<()> {
         let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         match unsafe { (self.VCI_OpenDevice)(dev_type as u32, dev_idx, 0) } {
             Self::STATUS_OK => Ok(()),
@@ -17,7 +17,7 @@ impl ZDeviceApi for USBCANFDApi<'_> {
         }
     }
 
-    fn close(&self, context: &ZDeviceContext) -> Result<(), CanError> {
+    fn close(&self, context: &ZDeviceContext) -> CanResult<()> {
         let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         match unsafe { (self.VCI_CloseDevice)(dev_type as u32, dev_idx) } {
             Self::STATUS_OK => Ok(()),
@@ -28,7 +28,7 @@ impl ZDeviceApi for USBCANFDApi<'_> {
         }
     }
 
-    fn read_device_info(&self, context: &ZDeviceContext) -> Result<ZDeviceInfo, CanError> {
+    fn read_device_info(&self, context: &ZDeviceContext) -> CanResult<ZDeviceInfo> {
         let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         let mut info = ZDeviceInfo::default();
         match unsafe { (self.VCI_ReadBoardInfo)(dev_type as u32, dev_idx, &mut info) } {
@@ -45,7 +45,7 @@ impl ZDeviceApi for USBCANFDApi<'_> {
         context: &ZChannelContext,
         cmd_path: &CmdPath,
         value: *const c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -68,7 +68,7 @@ impl ZDeviceApi for USBCANFDApi<'_> {
         context: &ZChannelContext,
         cmd_path: &CmdPath,
         value: *mut c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -91,15 +91,11 @@ impl ZDeviceApi for USBCANFDApi<'_> {
         context: &ZChannelContext,
         cmd_path: &CmdPath,
         value: *const c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         self.set_reference(context, cmd_path, value)
     }
 
-    fn get_value(
-        &self,
-        context: &ZChannelContext,
-        cmd_path: &CmdPath,
-    ) -> Result<*const c_void, CanError> {
+    fn get_value(&self, context: &ZChannelContext, cmd_path: &CmdPath) -> CanResult<*const c_void> {
         if context.device.dev_type.get_value_support() {
             let mut ret: Vec<u8> = Vec::new();
             ret.resize(16, 0);
@@ -110,7 +106,7 @@ impl ZDeviceApi for USBCANFDApi<'_> {
         }
     }
 
-    fn debug(&self, level: u32) -> Result<(), CanError> {
+    fn debug(&self, level: u32) -> CanResult<()> {
         unsafe {
             match (self.VCI_Debug)(level) {
                 Self::STATUS_OK => Ok(()),

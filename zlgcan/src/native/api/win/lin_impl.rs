@@ -2,14 +2,10 @@ use crate::native::{
     api::{WinApi, ZChannelContext, ZLinApi},
     lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinPublishEx, ZLinSubscribe},
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 
 impl ZLinApi for WinApi<'_> {
-    fn init_lin_chl(
-        &self,
-        context: &mut ZChannelContext,
-        cfg: &ZLinChlCfg,
-    ) -> Result<(), CanError> {
+    fn init_lin_chl(&self, context: &mut ZChannelContext, cfg: &ZLinChlCfg) -> CanResult<()> {
         unsafe {
             let dev_hdl = context.device_handler()?;
             let channel = context.channel;
@@ -31,7 +27,7 @@ impl ZLinApi for WinApi<'_> {
             }
         }
     }
-    fn reset_lin_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn reset_lin_chl(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_ResetLIN)(context.channel_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -40,7 +36,7 @@ impl ZLinApi for WinApi<'_> {
             ))),
         }
     }
-    fn get_lin_num(&self, context: &ZChannelContext) -> Result<u32, CanError> {
+    fn get_lin_num(&self, context: &ZChannelContext) -> CanResult<u32> {
         let ret = unsafe { (self.ZCAN_GetLINReceiveNum)(context.channel_handler()?) };
         if ret > 0 {
             rsutil::trace!("ZLGCAN - get receive LIN number: {}.", ret);
@@ -52,7 +48,7 @@ impl ZLinApi for WinApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<ZLinFrame>, CanError> {
+    ) -> CanResult<Vec<ZLinFrame>> {
         let mut frames = Vec::new();
         frames.resize_with(size as usize, ZLinFrame::default_data);
 
@@ -75,11 +71,7 @@ impl ZLinApi for WinApi<'_> {
         }
         Ok(frames)
     }
-    fn transmit_lin(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<ZLinFrame>,
-    ) -> Result<u32, CanError> {
+    fn transmit_lin(&self, context: &ZChannelContext, frames: Vec<ZLinFrame>) -> CanResult<u32> {
         let len = frames.len() as u32;
         let ret =
             unsafe { (self.ZCAN_TransmitLIN)(context.channel_handler()?, frames.as_ptr(), len) };
@@ -98,7 +90,7 @@ impl ZLinApi for WinApi<'_> {
         &self,
         context: &ZChannelContext,
         cfg: Vec<ZLinSubscribe>,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let len = cfg.len() as u32;
         match unsafe { (self.ZCAN_SetLINSubscribe)(context.channel_handler()?, cfg.as_ptr(), len) }
         {
@@ -109,11 +101,7 @@ impl ZLinApi for WinApi<'_> {
             ))),
         }
     }
-    fn set_lin_publish(
-        &self,
-        context: &ZChannelContext,
-        cfg: Vec<ZLinPublish>,
-    ) -> Result<(), CanError> {
+    fn set_lin_publish(&self, context: &ZChannelContext, cfg: Vec<ZLinPublish>) -> CanResult<()> {
         let len = cfg.len() as u32;
         match unsafe { (self.ZCAN_SetLINPublish)(context.channel_handler()?, cfg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
@@ -123,7 +111,7 @@ impl ZLinApi for WinApi<'_> {
             ))),
         }
     }
-    fn wakeup_lin(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn wakeup_lin(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_WakeUpLIN)(context.channel_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -136,7 +124,7 @@ impl ZLinApi for WinApi<'_> {
         &self,
         context: &ZChannelContext,
         cfg: Vec<ZLinPublishEx>,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let len = cfg.len() as u32;
         match unsafe { (self.ZCAN_SetLINPublishEx)(context.channel_handler()?, cfg.as_ptr(), len) }
         {
@@ -147,11 +135,7 @@ impl ZLinApi for WinApi<'_> {
             ))),
         }
     }
-    fn set_lin_slave_msg(
-        &self,
-        context: &ZChannelContext,
-        msg: Vec<ZLinFrame>,
-    ) -> Result<(), CanError> {
+    fn set_lin_slave_msg(&self, context: &ZChannelContext, msg: Vec<ZLinFrame>) -> CanResult<()> {
         let len = msg.len() as u32;
         match unsafe { (self.ZCAN_SetLINSlaveMsg)(context.channel_handler()?, msg.as_ptr(), len) } {
             Self::STATUS_OK => Ok(()),
@@ -161,11 +145,7 @@ impl ZLinApi for WinApi<'_> {
             ))),
         }
     }
-    fn clear_lin_slave_msg(
-        &self,
-        context: &ZChannelContext,
-        pids: Vec<u8>,
-    ) -> Result<(), CanError> {
+    fn clear_lin_slave_msg(&self, context: &ZChannelContext, pids: Vec<u8>) -> CanResult<()> {
         let len = pids.len() as u32;
         match unsafe {
             (self.ZCAN_ClearLINSlaveMsg)(context.channel_handler()?, pids.as_ptr(), len)

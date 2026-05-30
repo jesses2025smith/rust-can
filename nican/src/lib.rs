@@ -8,13 +8,29 @@ pub use self::{constants::*, driver::*, frame::*};
 
 use rs_can::{CanDevice, CanError, CanFilter, CanResult, DeviceBuilder};
 
-unsafe impl Send for NiCan {}
-unsafe impl Sync for NiCan {}
-
 #[async_trait::async_trait]
 impl CanDevice for NiCan {
     type Channel = String;
-    type Frame = CanMessage;
+    type Frame = NiCanFrame;
+
+    fn new(builder: DeviceBuilder<String>) -> CanResult<Self> {
+        let libpath = builder.get_other::<String>(LIBPATH)?;
+        let mut device = NiCan::new(libpath.as_deref())?;
+        builder
+            .channel_configs()
+            .iter()
+            .try_for_each(|(chl, cfg)| {
+                let filters = cfg
+                    .get_other::<Vec<CanFilter>>(FILTERS)?
+                    .unwrap_or_default();
+                let bitrate = cfg.bitrate();
+                let log_error = cfg.get_other::<bool>(LOG_ERROR)?.unwrap_or_default();
+
+                device.open(chl, filters, bitrate, log_error)
+            })?;
+
+        Ok(device)
+    }
 
     #[inline]
     fn is_closed(&self) -> bool {
@@ -27,7 +43,7 @@ impl CanDevice for NiCan {
     }
 
     #[inline]
-    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
+    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<()> {
         self.transmit_can(msg)
     }
 
@@ -36,7 +52,7 @@ impl CanDevice for NiCan {
         &self,
         channel: Self::Channel,
         timeout: Option<u32>,
-    ) -> CanResult<Vec<Self::Frame>, CanError> {
+    ) -> CanResult<Vec<Self::Frame>> {
         self.receive_can(channel, timeout)
     }
 
@@ -55,28 +71,5 @@ impl CanDevice for NiCan {
         });
 
         self.channels.clear();
-    }
-}
-
-impl TryFrom<DeviceBuilder<String>> for NiCan {
-    type Error = CanError;
-
-    fn try_from(builder: DeviceBuilder<String>) -> Result<Self, Self::Error> {
-        let libpath = builder.get_other::<String>(LIBPATH)?;
-        let mut device = NiCan::new(libpath.as_deref())?;
-        builder
-            .channel_configs()
-            .iter()
-            .try_for_each(|(chl, cfg)| {
-                let filters = cfg
-                    .get_other::<Vec<CanFilter>>(FILTERS)?
-                    .unwrap_or_default();
-                let bitrate = cfg.bitrate();
-                let log_error = cfg.get_other::<bool>(LOG_ERROR)?.unwrap_or_default();
-
-                device.open(chl, filters, bitrate, log_error)
-            })?;
-
-        Ok(device)
     }
 }

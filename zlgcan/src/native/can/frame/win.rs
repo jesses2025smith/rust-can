@@ -1,5 +1,5 @@
-use crate::native::can::{frame::common::ZCanMsg20, CanMessage};
-use rs_can::{MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
+use crate::native::can::{frame::common::ZCanMsg20, ZCanFrame};
+use rs_can::{Timestamp, TimestampSource, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
 use std::ffi::{c_uint, c_ulonglong};
 
 #[repr(C)]
@@ -9,8 +9,8 @@ pub(crate) struct ZCanFrameTx<const S: usize> {
     pub(crate) tx_mode: c_uint, // ZCanTxMode
 }
 
-impl<const S: usize> From<CanMessage> for ZCanFrameTx<S> {
-    fn from(msg: CanMessage) -> Self {
+impl<const S: usize> From<ZCanFrame> for ZCanFrameTx<S> {
+    fn from(msg: ZCanFrame) -> Self {
         let tx_mode = msg.tx_mode() as u32;
         let frame = msg.into();
         Self { frame, tx_mode }
@@ -24,12 +24,14 @@ pub(crate) struct ZCanFrameRx<const S: usize> {
     pub(crate) timestamp: c_ulonglong,
 }
 
-impl<const S: usize> Into<CanMessage> for ZCanFrameRx<S> {
-    fn into(self) -> CanMessage {
-        let timestamp = self.timestamp;
-        let mut msg: CanMessage = self.frame.into();
-        msg.timestamp = timestamp;
-
+impl<const S: usize> Into<ZCanFrame> for ZCanFrameRx<S> {
+    fn into(self) -> ZCanFrame {
+        let timestamp = Timestamp {
+            nanos: self.timestamp as u128 * 1_000,
+            source: TimestampSource::Hardware,
+        };
+        let mut msg: ZCanFrame = self.frame.into();
+        msg.timestamp = Some(timestamp);
         msg
     }
 }

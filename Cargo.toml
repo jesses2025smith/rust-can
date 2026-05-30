@@ -13,7 +13,7 @@ default-members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR GPL-3.0"
 authors = ["Jesse Smith <jesses2025smith@gmail.com>"]
@@ -28,16 +28,10 @@ futures = "0.3"
 dlopen2 = "0.8"
 log = "0.4"
 rand = "0.10"
-rs-can = { path = "rs-can", version = "0.3.2" }
+rs-can = { path = "rs-can", version = "0.4.0" }
 rsutil = "0.1"
 scopeguard = "1.2"
 serde = "1.0"
 serde_yaml = "0.9"
 thiserror = "2.0"
 tokio = "1.50"
-
-[workspace.'cfg(target_os = "linux")'.dependencies]
-socketcan = { path = "socketcan" }
-
-[workspace.'cfg(target_os = "windows", target_arch = "x86")'.dependencies]
-nican = { path = "nican" }

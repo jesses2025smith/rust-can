@@ -1,14 +1,14 @@
 use crate::can::ZCanTxMode;
 use rs_can::{
-    can_utils, CanDirect, CanFrame, CanId, CanType, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
-    MAX_XL_FRAME_SIZE,
+    CanDirection, CanError, CanFdFlags, CanFrame, CanId, CanKind, CanResult, FrameFormat,
+    Timestamp, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
 };
 use std::fmt::{Display, Formatter};
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct CanMessage {
-    pub(crate) timestamp: u64,
+pub struct ZCanFrame {
+    pub(crate) timestamp: Option<Timestamp>,
     pub(crate) arbitration_id: u32,
     pub(crate) is_extended_id: bool,
     pub(crate) is_remote_frame: bool,
@@ -16,137 +16,145 @@ pub struct CanMessage {
     pub(crate) channel: u8,
     pub(crate) length: usize,
     pub(crate) data: Vec<u8>,
-    pub(crate) can_type: CanType,
-    pub(crate) direct: CanDirect,
+    pub(crate) kind: CanKind,
+    pub(crate) direction: CanDirection,
     pub(crate) bitrate_switch: bool,
     pub(crate) error_state_indicator: bool,
     pub(crate) tx_mode: Option<u8>,
 }
 
-unsafe impl Send for CanMessage {}
-unsafe impl Sync for CanMessage {}
-
-impl CanFrame for CanMessage {
+impl CanFrame for ZCanFrame {
     type Channel = u8;
+
     #[inline]
-    fn new(id: impl Into<CanId>, data: &[u8]) -> Option<Self> {
+    fn new_can(id: CanId, data: &[u8]) -> CanResult<Self> {
         let length = data.len();
-
-        match can_utils::can_type(length) {
-            Ok(can_type) => {
-                let id: CanId = id.into();
-                Some(Self {
-                    timestamp: 0,
-                    arbitration_id: id.as_raw(),
-                    is_extended_id: id.is_extended(),
-                    is_remote_frame: false,
-                    is_error_frame: false,
-                    channel: Default::default(),
-                    length,
-                    data: data.to_vec(),
-                    can_type,
-                    direct: Default::default(),
-                    bitrate_switch: false,
-                    error_state_indicator: false,
-                    tx_mode: Default::default(),
-                })
-            }
-            Err(_) => None,
+        if length > MAX_FRAME_SIZE {
+            return Err(CanError::InvalidDLC(length));
         }
+        Ok(Self {
+            timestamp: None,
+            arbitration_id: id.as_raw(),
+            is_extended_id: id.is_extended(),
+            is_remote_frame: false,
+            is_error_frame: false,
+            channel: Default::default(),
+            length,
+            data: data.to_vec(),
+            kind: CanKind::Classical,
+            direction: CanDirection::Transmit,
+            bitrate_switch: false,
+            error_state_indicator: false,
+            tx_mode: Default::default(),
+        })
     }
 
     #[inline]
-    fn new_remote(id: impl Into<CanId>, len: usize) -> Option<Self> {
-        match can_utils::can_type(len) {
-            Ok(can_type) => {
-                let id = id.into();
-
-                Some(Self {
-                    timestamp: 0,
-                    arbitration_id: id.as_raw(),
-                    is_extended_id: id.is_extended(),
-                    is_remote_frame: true,
-                    is_error_frame: false,
-                    channel: Default::default(),
-                    length: len,
-                    data: Default::default(),
-                    can_type,
-                    direct: Default::default(),
-                    bitrate_switch: false,
-                    error_state_indicator: false,
-                    tx_mode: Default::default(),
-                })
-            }
-            Err(_) => None,
+    fn new_remote(id: CanId, dlc: u8) -> CanResult<Self> {
+        if dlc as usize > MAX_FRAME_SIZE {
+            return Err(CanError::InvalidDLC(dlc as usize));
         }
+        Ok(Self {
+            timestamp: None,
+            arbitration_id: id.as_raw(),
+            is_extended_id: id.is_extended(),
+            is_remote_frame: true,
+            is_error_frame: false,
+            channel: Default::default(),
+            length: dlc as usize,
+            data: Default::default(),
+            kind: CanKind::Classical,
+            direction: CanDirection::Transmit,
+            bitrate_switch: false,
+            error_state_indicator: false,
+            tx_mode: Default::default(),
+        })
     }
 
     #[inline]
-    fn timestamp(&self) -> u64 {
-        self.timestamp
-    }
-
-    #[inline]
-    fn set_timestamp(&mut self, value: Option<u64>) -> &mut Self {
-        self.timestamp = value.unwrap_or_default();
-        self
+    fn new_can_fd(id: CanId, data: &[u8], flags: CanFdFlags) -> CanResult<Self> {
+        let length = data.len();
+        if length > MAX_FD_FRAME_SIZE {
+            return Err(CanError::InvalidDLC(length));
+        }
+        Ok(Self {
+            timestamp: None,
+            arbitration_id: id.as_raw(),
+            is_extended_id: id.is_extended(),
+            is_remote_frame: false,
+            is_error_frame: false,
+            channel: Default::default(),
+            length,
+            data: data.to_vec(),
+            kind: CanKind::FD,
+            direction: CanDirection::Transmit,
+            bitrate_switch: flags.contains(CanFdFlags::BRS),
+            error_state_indicator: flags.contains(CanFdFlags::ESI),
+            tx_mode: Default::default(),
+        })
     }
 
     #[inline]
     fn id(&self) -> CanId {
-        CanId::from_bits(self.arbitration_id, Some(self.is_extended_id))
+        CanId::from_bits(self.arbitration_id, Some(self.is_extended_id)).unwrap()
     }
 
     #[inline]
-    fn can_type(&self) -> CanType {
-        self.can_type
+    fn channel(&self) -> Self::Channel {
+        self.channel
     }
 
     #[inline]
-    fn set_can_type(&mut self, r#type: CanType) -> &mut Self {
-        match r#type {
-            CanType::Can => {
-                if self.length > MAX_FRAME_SIZE {
-                    rsutil::warn!("resize a frame to: {}", MAX_FRAME_SIZE);
-                    self.length = MAX_FRAME_SIZE;
-                }
-            }
-            CanType::CanFd => {
-                if self.length > MAX_FD_FRAME_SIZE {
-                    rsutil::warn!("resize a frame to: {}", MAX_FD_FRAME_SIZE);
-                    self.length = MAX_FD_FRAME_SIZE;
-                }
-            }
-            CanType::CanXl => {
-                if self.length > MAX_XL_FRAME_SIZE {
-                    rsutil::warn!("resize a frame to: {}", MAX_XL_FRAME_SIZE);
-                    self.length = MAX_XL_FRAME_SIZE;
-                }
-            }
-        }
-
-        self.can_type = r#type;
+    fn set_channel(&mut self, v: Self::Channel) -> &mut Self {
+        self.channel = v;
         self
     }
 
     #[inline]
-    fn is_remote(&self) -> bool {
-        self.is_remote_frame
+    fn kind(&self) -> CanKind {
+        self.kind
     }
 
     #[inline]
-    fn is_extended(&self) -> bool {
-        self.is_extended_id
+    fn format(&self) -> FrameFormat {
+        if self.is_remote_frame {
+            FrameFormat::Remote
+        } else if self.is_error_frame {
+            FrameFormat::Error
+        } else {
+            FrameFormat::Data
+        }
     }
 
     #[inline]
-    fn direct(&self) -> CanDirect {
-        self.direct.clone()
+    fn data(&self) -> &[u8] {
+        self.data.as_slice()
     }
 
     #[inline]
-    fn set_direct(&mut self, direct: CanDirect) -> &mut Self {
-        self.direct = direct;
+    fn len(&self) -> usize {
+        self.length
+    }
+
+    #[inline]
+    fn direction(&self) -> CanDirection {
+        self.direction
+    }
+
+    #[inline]
+    fn set_direction(&mut self, d: CanDirection) -> &mut Self {
+        self.direction = d;
+        self
+    }
+
+    #[inline]
+    fn timestamp(&self) -> Option<Timestamp> {
+        self.timestamp
+    }
+
+    #[inline]
+    fn set_timestamp(&mut self, ts: Option<Timestamp>) -> &mut Self {
+        self.timestamp = ts;
         self
     }
 
@@ -156,19 +164,8 @@ impl CanFrame for CanMessage {
     }
 
     #[inline]
-    fn set_bitrate_switch(&mut self, value: bool) -> &mut Self {
-        self.bitrate_switch = value;
-        self
-    }
-
-    #[inline]
-    fn is_error_frame(&self) -> bool {
-        self.is_error_frame
-    }
-
-    #[inline]
-    fn set_error_frame(&mut self, value: bool) -> &mut Self {
-        self.is_error_frame = value;
+    fn set_bitrate_switch(&mut self, v: bool) -> &mut Self {
+        self.bitrate_switch = v;
         self
     }
 
@@ -178,34 +175,13 @@ impl CanFrame for CanMessage {
     }
 
     #[inline]
-    fn set_esi(&mut self, value: bool) -> &mut Self {
-        self.error_state_indicator = value;
+    fn set_esi(&mut self, v: bool) -> &mut Self {
+        self.error_state_indicator = v;
         self
-    }
-
-    #[inline]
-    fn channel(&self) -> Self::Channel {
-        self.channel
-    }
-
-    #[inline]
-    fn set_channel(&mut self, value: Self::Channel) -> &mut Self {
-        self.channel = value;
-        self
-    }
-
-    #[inline]
-    fn data(&self) -> &[u8] {
-        self.data.as_slice()
-    }
-
-    #[inline]
-    fn length(&self) -> usize {
-        self.length
     }
 }
 
-impl PartialEq for CanMessage {
+impl PartialEq for ZCanFrame {
     fn eq(&self, other: &Self) -> bool {
         if self.length != other.length {
             return false;
@@ -223,7 +199,7 @@ impl PartialEq for CanMessage {
     }
 }
 
-impl CanMessage {
+impl ZCanFrame {
     #[inline(always)]
     pub fn tx_mode(&self) -> u8 {
         self.tx_mode.unwrap_or_else(|| ZCanTxMode::default() as u8)
@@ -235,8 +211,35 @@ impl CanMessage {
     }
 }
 
-impl Display for CanMessage {
+impl Display for ZCanFrame {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         <dyn CanFrame<Channel = u8> as Display>::fmt(self, f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rs_can::{CanId, StandardId};
+
+    #[test]
+    fn invalid_standard_id_is_clamped_to_fallback_identifier() {
+        let msg = ZCanFrame {
+            timestamp: None,
+            arbitration_id: 0x800,
+            is_extended_id: false,
+            is_remote_frame: false,
+            is_error_frame: false,
+            channel: 0,
+            length: 0,
+            data: Vec::new(),
+            kind: CanKind::Classical,
+            direction: CanDirection::Receive,
+            bitrate_switch: false,
+            error_state_indicator: false,
+            tx_mode: None,
+        };
+
+        assert_eq!(msg.id(), CanId::Standard(StandardId::new(0).unwrap()));
     }
 }

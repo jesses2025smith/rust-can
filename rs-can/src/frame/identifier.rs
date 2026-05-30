@@ -1,5 +1,10 @@
-use crate::constants::{EFF_MASK, SFF_MASK};
+use crate::{
+    constants::{EFF_MASK, SFF_MASK},
+    error::Error,
+    CanResult,
+};
 use bitflags::bitflags;
+use serde::{Deserialize, Serialize};
 
 bitflags! {
     /// Identifier flags for indicating various frame types.
@@ -48,118 +53,148 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct Filter {
-    pub can_id: u32,
-    pub can_mask: u32,
-    pub extended: bool,
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, Hash)]
+pub enum Filter {
+    Standard { id: StandardId, mask: u16 },
+    Extended { id: ExtendedId, mask: u32 },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+impl Default for Filter {
+    fn default() -> Self {
+        Self::Standard {
+            id: StandardId::default(),
+            mask: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Hash)]
 pub enum Id {
-    Standard(u16),
-    Extended(u32),
+    Standard(StandardId),
+    Extended(ExtendedId),
 }
 
-unsafe impl Send for Id {}
-unsafe impl Sync for Id {}
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Hash)]
+pub struct StandardId(u16);
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Hash)]
+pub struct ExtendedId(u32);
+
+impl StandardId {
+    pub const MAX: u16 = 0x7FF;
+
+    pub fn new(id: u16) -> CanResult<Self> {
+        if id > Self::MAX {
+            Err(Error::InvalidIdentifier(id as u32))
+        } else {
+            Ok(Self(id))
+        }
+    }
+
+    #[inline]
+    pub fn as_raw(self) -> u16 {
+        self.0
+    }
+}
+
+impl ExtendedId {
+    pub const MAX: u32 = 0x1FFF_FFFF;
+
+    pub fn new(id: u32) -> CanResult<Self> {
+        if id > Self::MAX {
+            Err(Error::InvalidIdentifier(id))
+        } else {
+            Ok(Self(id))
+        }
+    }
+
+    #[inline]
+    pub fn as_raw(self) -> u32 {
+        self.0
+    }
+}
 
 impl Into<u32> for Id {
     /// 32-bit integer with extended flag
     fn into(self) -> u32 {
-        self.into_bits()
+        self.into_socketcan_bits()
     }
 }
 
-impl From<u32> for Id {
-    /// Return [`Id::Extended`] if [`IdentifierFlags::EXTENDED`] bit is set
-    /// or `id` value rather than [`SFF_MASK`] else [`Id::Standard`]
-    fn from(id: u32) -> Self {
-        Self::_from_bits(id)
+impl TryFrom<u32> for Id {
+    type Error = Error;
+
+    fn try_from(v: u32) -> Result<Self, Self::Error> {
+        let flag_mask =
+            (IdentifierFlags::EXTENDED | IdentifierFlags::REMOTE | IdentifierFlags::ERROR).bits();
+        let raw = v & !flag_mask;
+
+        if v & IdentifierFlags::EXTENDED.bits() != 0 {
+            ExtendedId::new(raw & EFF_MASK).map(Id::Extended)
+        } else {
+            StandardId::new((raw & SFF_MASK) as u16).map(Id::Standard)
+        }
     }
 }
 
 impl Id {
     #[inline]
-    pub fn new_standard(id: u16) -> Self {
-        Self::Standard(id)
-    }
-
-    #[inline]
-    pub fn new_extended(id: u32) -> Self {
-        Self::Extended(id)
-    }
-
-    /// Return [`Id::Extended`] if `force_extend` is Some(true)
-    /// or [`IdentifierFlags::EXTENDED`] bit is set
-    /// or `id` value rather than [`SFF_MASK`]
-    /// else [`Id::Standard`]
-    #[inline]
-    pub fn from_bits(id: u32, force_extend: Option<bool>) -> Self {
-        match force_extend {
-            Some(true) => Self::Extended(id),
-            _ => Self::_from_bits(id),
+    pub fn from_bits(raw: u32, extended: Option<bool>) -> CanResult<Self> {
+        match extended {
+            Some(true) => ExtendedId::new(raw & EFF_MASK).map(Self::Extended),
+            Some(false) => StandardId::new((raw & SFF_MASK) as u16).map(Self::Standard),
+            None => Self::try_from(raw),
         }
     }
 
-    /// Returns [`Id`] as a 32-bit integer with extended flag.
-    #[inline]
-    pub fn into_bits(self) -> u32 {
-        match self {
-            Self::Standard(id) => id as u32,
-            Self::Extended(id) => id | IdentifierFlags::EXTENDED.bits(),
-        }
-    }
-
-    /// Parse from a hex string.
-    #[inline]
-    pub fn from_hex(hex_str: &str, force_extend: Option<bool>) -> Option<Self> {
-        let bits = u32::from_str_radix(hex_str, 16).ok()?;
-
-        Some(Self::from_bits(bits, force_extend))
-    }
-
-    /// Display [`Id`] as hex string.
-    #[inline]
-    pub fn into_hex(self) -> String {
-        format!("{:08X}", self.into_bits())
-    }
-
-    /// Returns the Base ID part of this extended identifier.
-    #[inline]
-    pub fn standard_id(self) -> Self {
-        match self {
-            Self::Standard(_) => self,
-            Self::Extended(v) => Self::Standard((v >> 18) as u16), // ID-28 to ID-18
-        }
-    }
-
-    /// Returns [`Id`] as a 32-bit integer without extended flag.
     #[inline]
     pub fn as_raw(self) -> u32 {
         match self {
-            Self::Standard(id) => id as u32,
-            Self::Extended(id) => id,
+            Self::Standard(id) => id.as_raw() as u32,
+            Self::Extended(id) => id.as_raw(),
         }
     }
 
-    /// Return `true` if [`Id`] is extended else `false`
     #[inline]
     pub fn is_extended(&self) -> bool {
         matches!(self, Self::Extended(_))
     }
 
     #[inline]
-    fn _from_bits(id: u32) -> Self {
-        match id & IdentifierFlags::EXTENDED.bits() {
-            0 => {
-                if id > SFF_MASK {
-                    Self::new_extended(id)
-                } else {
-                    Self::new_standard(id as u16)
-                }
-            }
-            _ => Self::new_extended(id & EFF_MASK),
+    pub fn into_socketcan_bits(self) -> u32 {
+        match self {
+            Self::Standard(id) => id.as_raw() as u32,
+            Self::Extended(id) => id.as_raw() | IdentifierFlags::EXTENDED.bits(),
         }
+    }
+
+    /// Display [`Id`] as hex string.
+    #[inline]
+    pub fn into_hex(self) -> String {
+        format!("{:08X}", self.into_socketcan_bits())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn id_into_u32_uses_socketcan_bits() {
+        let extended = Id::Extended(ExtendedId::new(0x123456).unwrap());
+        let raw: u32 = extended.into();
+
+        assert_eq!(raw, 0x0012_3456 | IdentifierFlags::EXTENDED.bits());
+    }
+
+    #[test]
+    fn try_from_socketcan_bits_masks_non_identifier_flags() {
+        let bits = 0x0012_3456
+            | IdentifierFlags::EXTENDED.bits()
+            | IdentifierFlags::REMOTE.bits()
+            | IdentifierFlags::ERROR.bits();
+
+        let id = Id::try_from(bits).unwrap();
+        assert_eq!(id, Id::Extended(ExtendedId::new(0x0012_3456).unwrap()));
     }
 }

@@ -1,5 +1,5 @@
-use rs_can::{CanDevice, CanError, CanFrame, DeviceBuilder};
-use socketcan_rs::{CanMessage, SocketCan};
+use rs_can::{CanDevice, CanError, CanFrame, CanId, DeviceBuilder};
+use socketcan_rs::{SocketCan, SocketCanFrame};
 
 fn device_builder(iface: String) -> anyhow::Result<SocketCan, CanError> {
     let mut builder = DeviceBuilder::new();
@@ -16,7 +16,8 @@ async fn test_driver() -> anyhow::Result<(), CanError> {
 
     loop {
         let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
-        let mut message = CanMessage::new(0x1234, &data).unwrap();
+        let mut message =
+            SocketCanFrame::new_can(CanId::try_from(0x1234_u32).unwrap(), &data).unwrap();
         message.set_channel(iface.clone());
         match device1.transmit(message, None).await {
             Ok(()) => match device2.receive(iface.clone(), None).await {
