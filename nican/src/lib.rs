@@ -6,7 +6,7 @@ mod frame;
 
 pub use self::{constants::*, driver::*, frame::*};
 
-use rs_can::{CanDevice, CanError, CanFilter, CanResult, DeviceBuilder};
+use rs_can::{CanDevice, CanFilter, CanResult, DeviceBuilder};
 
 #[async_trait::async_trait]
 impl CanDevice for NiCan {
@@ -23,7 +23,7 @@ impl CanDevice for NiCan {
                 let filters = cfg
                     .get_other::<Vec<CanFilter>>(FILTERS)?
                     .unwrap_or_default();
-                let bitrate = cfg.bitrate();
+                let bitrate = cfg.nominal_bitrate;
                 let log_error = cfg.get_other::<bool>(LOG_ERROR)?.unwrap_or_default();
 
                 device.open(chl, filters, bitrate, log_error)

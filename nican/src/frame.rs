@@ -1,6 +1,6 @@
 use rs_can::{
-    CanDirection, CanError, CanFdFlags, CanFrame, CanId, CanKind, CanResult, ExtendedId,
-    FrameFormat, StandardId, Timestamp, TimestampSource, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
+    CanDirection, CanError, CanFdFlags, CanFrame, CanId, CanKind, CanResult, 
+    FrameFormat, Timestamp, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
 };
 use std::fmt::{Display, Formatter};
 
@@ -133,7 +133,7 @@ impl CanFrame for NiCanFrame {
     }
 
     fn set_timestamp(&mut self, ts: Option<Timestamp>) -> &mut Self {
-        self.timestamp = td;
+        self.timestamp = ts;
         self
     }
 

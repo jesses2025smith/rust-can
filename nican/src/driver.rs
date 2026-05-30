@@ -48,6 +48,9 @@ pub struct NiCan {
         unsafe extern "system" fn(NCTYPE_STATUS, NCTYPE_UINT32, NCTYPE_STRING) -> NCTYPE_STATUS,
 }
 
+unsafe impl Send for NiCan {}
+unsafe impl Sync for NiCan {}
+
 impl NiCan {
     pub fn new(dll_path: Option<&str>) -> CanResult<Self> {
         let dll_path = dll_path.unwrap_or(r"Nican.dll");
@@ -115,7 +118,7 @@ impl NiCan {
                 ]);
                 attr_val.extend([0; 4])
             }
-            _ => filters.into_iter().for_each(|f| {
+            _ => filters.iter().for_each(|&f| {
                 attr_id.extend([NC_ATTR_CAN_COMP_XTD, NC_ATTR_CAN_MASK_XTD]);
                 match f {
                     CanFilter::Standard { id, mask } => {
