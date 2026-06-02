@@ -3,8 +3,8 @@ use crate::{
     native::{
         api::{WinApi, ZCanApi, ZChannelContext, ZDeviceApi},
         can::{
-            self, ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFdFrameInner,
-            ZCanFrame, ZCanFrameInner, ZCanFrameType, ZCanFrameUnion,
+            self, ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFrame, ZCanFrameRx,
+            ZCanFrameTx, ZCanFrameType,
         },
         constants::{
             BAUD_RATE, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, CLOCK, INTERNAL_RESISTANCE,
@@ -14,6 +14,7 @@ use crate::{
     },
 };
 use rs_can::{CanError, CanResult, ChannelConfig};
+use rs_can::{MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
 use std::ffi::{c_void, CString};
 
 impl ZCanApi for WinApi<'_> {
@@ -174,45 +175,32 @@ impl ZCanApi for WinApi<'_> {
         size: u32,
         timeout: u32,
     ) -> CanResult<Vec<ZCanFrame>> {
-        let mut frames = Vec::new();
-        frames.resize(
-            size as usize,
-            ZCanFrameUnion {
-                can: ZCanFrameInner {
-                    rx: Default::default(),
-                },
-            },
-        );
+        let mut frames = vec![ZCanFrameRx::<{ MAX_FRAME_SIZE }>::default(); size as usize];
 
-        // let ret = unsafe { (self.ZCAN_Receive)(context.channel_handler()?, frames.as_mut_ptr(), size, timeout) };
-        // if ret < size {
-        //     rsutil::warn!("ZLGCAN - receive CAN frame expect: {}, actual: {}!", size, ret);
-        // }
-        // else if ret > 0 {
-        //     rsutil::trace!("ZLGCAN - receive CAN frame: {}", ret);
-        // }
-        let mut count = 0;
-        for i in 0..size as usize {
-            let ret = unsafe {
-                (self.ZCAN_Receive)(context.channel_handler()?, &mut frames[i], 1, timeout)
-            };
-            if ret == 1 {
-                count += 1;
-            }
-        }
-        if count < size {
+        let ret = unsafe {
+            (self.ZCAN_Receive)(
+                context.channel_handler()?,
+                frames.as_mut_ptr(),
+                size,
+                timeout,
+            )
+        };
+        if ret < size {
             rsutil::warn!(
                 "ZLGCAN - receive CAN frame expect: {}, actual: {}!",
                 size,
-                count
+                ret
             );
+        } else if ret > 0 {
+            rsutil::trace!("ZLGCAN - receive CAN frame: {}", ret);
         }
 
         Ok(frames
             .into_iter()
-            .map(|mut frame| unsafe {
-                frame.can.rx.frame.set_channel(context.channel);
-                frame.can.rx.into()
+            .take(ret as usize)
+            .map(|mut frame| {
+                frame.frame.set_channel(context.channel);
+                frame.into()
             })
             .collect::<Vec<_>>())
     }
@@ -220,35 +208,23 @@ impl ZCanApi for WinApi<'_> {
     fn transmit_can(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|msg| ZCanFrameUnion {
-                can: ZCanFrameInner { tx: msg.into() },
-            })
+            .map(ZCanFrameTx::<{ MAX_FRAME_SIZE }>::from)
             .collect::<Vec<_>>();
 
         let len = frames.len() as u32;
         let chl_hdl = context.channel_handler()?;
-        // method 1
-        // let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
-        // if ret < len {
-        //     rsutil::warn!("ZLGCAN - transmit CAN frame expect: {}, actual: {}!", len, ret);
-        // }
-        // Ok(ret)
-        // method 3: just do like this because of pointer offset TODO
-        let mut count = 0;
-        frames.iter().for_each(|frame| {
-            let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frame, 1) };
-            count += ret;
-        });
-        if count < len {
+        let ret = unsafe { (self.ZCAN_Transmit)(chl_hdl, frames.as_ptr(), len) };
+        if ret < len {
             rsutil::warn!(
                 "ZLGCAN - transmit CAN frame expect: {}, actual: {}!",
                 len,
-                count
+                ret
             );
         } else {
-            rsutil::trace!("ZLGCAN - transmit CAN frame: {}", count);
+            rsutil::trace!("ZLGCAN - transmit CAN frame: {}", ret);
         }
-        Ok(count)
+
+        Ok(ret)
     }
 
     fn receive_canfd(
@@ -257,38 +233,32 @@ impl ZCanApi for WinApi<'_> {
         size: u32,
         timeout: u32,
     ) -> CanResult<Vec<ZCanFrame>> {
-        let mut frames = Vec::new();
-        frames.resize(
-            size as usize,
-            ZCanFrameUnion {
-                canfd: ZCanFdFrameInner {
-                    rx: Default::default(),
-                },
-            },
-        );
+        let mut frames = vec![ZCanFrameRx::<{ MAX_FD_FRAME_SIZE }>::default(); size as usize];
 
-        let mut count = 0;
-        for i in 0..size as usize {
-            let ret = unsafe {
-                (self.ZCAN_ReceiveFD)(context.channel_handler()?, &mut frames[i], 1, timeout)
-            };
-            if ret == 1 {
-                count += 1;
-            }
-        }
-        if count < size {
+        let ret = unsafe {
+            (self.ZCAN_ReceiveFD)(
+                context.channel_handler()?,
+                frames.as_mut_ptr(),
+                size,
+                timeout,
+            )
+        };
+        if ret < size {
             rsutil::warn!(
                 "ZLGCAN - receive CANFD frame expect: {}, actual: {}!",
                 size,
-                count
+                ret
             );
+        } else if ret > 0 {
+            rsutil::trace!("ZLGCAN - receive CANFD frame: {}", ret);
         }
 
         Ok(frames
             .into_iter()
-            .map(|mut frame| unsafe {
-                frame.canfd.rx.frame.set_channel(context.channel);
-                frame.canfd.rx.into()
+            .take(ret as usize)
+            .map(|mut frame| {
+                frame.frame.set_channel(context.channel);
+                frame.into()
             })
             .collect::<Vec<_>>())
     }
@@ -296,32 +266,21 @@ impl ZCanApi for WinApi<'_> {
     fn transmit_canfd(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|msg| ZCanFrameUnion {
-                canfd: ZCanFdFrameInner { tx: msg.into() },
-            })
+            .map(ZCanFrameTx::<{ MAX_FD_FRAME_SIZE }>::from)
             .collect::<Vec<_>>();
 
         let len = frames.len() as u32;
         let chl_hdl = context.channel_handler()?;
-        // let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frames.as_ptr(), len) };
-        // if ret < len {
-        //     warn!("ZLGCAN - transmit CANFD frame expect: {}, actual: {}!", len, ret);
-        // }
-        // Ok(ret)
-        let mut count = 0;
-        frames.iter().for_each(|frame| {
-            let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frame, 1) };
-            count += ret;
-        });
-        if count < len {
+        let ret = unsafe { (self.ZCAN_TransmitFD)(chl_hdl, frames.as_ptr(), len) };
+        if ret < len {
             rsutil::warn!(
                 "ZLGCAN - transmit CAN-FD frame expect: {}, actual: {}!",
                 len,
-                count
+                ret
             );
         } else {
-            rsutil::trace!("ZLGCAN - transmit CAN-FD frame: {}", count);
+            rsutil::trace!("ZLGCAN - transmit CAN-FD frame: {}", ret);
         }
-        Ok(count)
+        Ok(ret)
     }
 }
