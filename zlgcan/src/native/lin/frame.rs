@@ -1,11 +1,11 @@
 use crate::native::lin::enums::{ZLinCheckSumMode, ZLinDataType};
 use rs_can::{CanError, CanResult};
-use std::ffi::{c_uchar, c_ulong, c_ushort};
+use std::ffi::{c_uchar, c_ulonglong, c_ushort};
 
-#[repr(C)]
+#[cfg_attr(any(target_os = "windows", target_os = "linux"), repr(C, packed(1)))]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ZLinRxData {
-    pub timestamp: c_ulong,
+    pub timestamp: c_ulonglong,
     pub len: c_uchar,
     pub dir: c_uchar,
     pub chk_sum: c_uchar,
@@ -13,7 +13,7 @@ pub struct ZLinRxData {
     pub data: [c_uchar; 8usize],
 }
 
-#[repr(C)]
+#[cfg_attr(any(target_os = "windows", target_os = "linux"), repr(C, packed(1)))]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ZLinData {
     pub pid: c_uchar,
@@ -21,10 +21,10 @@ pub struct ZLinData {
     pub reserved: [c_uchar; 7usize],
 }
 
-#[repr(C)]
+#[cfg_attr(any(target_os = "windows", target_os = "linux"), repr(C, packed(1)))]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LinErrData {
-    pub timestamp: c_ulong,
+    pub timestamp: c_ulonglong,
     pub pid: c_uchar,
     pub len: c_uchar,
     pub data: [c_uchar; 8usize],
@@ -34,16 +34,16 @@ pub struct LinErrData {
     pub reserved: [c_uchar; 10usize],
 }
 
-#[repr(C)]
+#[cfg_attr(any(target_os = "windows", target_os = "linux"), repr(C, packed(1)))]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LinEventData {
-    pub timestamp: c_ulong,
+    pub timestamp: c_ulonglong,
     pub event: c_uchar,
     pub reserved: [c_uchar; 7usize],
 }
 
 #[allow(non_snake_case)]
-#[repr(C)]
+#[cfg_attr(any(target_os = "windows", target_os = "linux"), repr(C, packed(1)))]
 pub union ZLinFrameDataUnion {
     data: ZLinData,
     err: LinErrData,
@@ -69,7 +69,7 @@ impl ZLinFrameDataUnion {
     }
 }
 
-#[repr(C)]
+#[cfg_attr(any(target_os = "windows", target_os = "linux"), repr(C, packed(1)))]
 pub struct ZLinFrame {
     pub chl: c_uchar,
     pub data_type: c_uchar,
