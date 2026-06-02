@@ -1,8 +1,11 @@
 use crate::native::can::{
     constants::{CANERR_FRAME_LENGTH, TIME_FLAG_VALID},
-    CanMessage,
+    ZCanFrame,
 };
-use rs_can::{can_utils, CanDirect, CanType, DEFAULT_PADDING, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE};
+use rs_can::{
+    can_utils, CanDirection, CanKind, Timestamp, TimestampSource, DEFAULT_PADDING,
+    MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
+};
 use std::ffi::{c_uchar, c_uint, c_ushort};
 
 /// only used usbcan on linux
@@ -22,12 +25,15 @@ pub(crate) struct ZCanFrameVCI {
     pub(crate) reserved: [c_uchar; 3 - 1], // use 1byte to channel
 }
 
-impl Into<CanMessage> for ZCanFrameVCI {
-    fn into(self) -> CanMessage {
+impl Into<ZCanFrame> for ZCanFrameVCI {
+    fn into(self) -> ZCanFrame {
         if self.time_flag != TIME_FLAG_VALID {
             rsutil::warn!("ZCanFrameVCI - time flag is invalid")
         }
-        let timestamp = self.timestamp as u64;
+        let timestamp = Timestamp {
+            nanos: self.timestamp as u128 * 1_000,
+            source: TimestampSource::Hardware,
+        };
         let arbitration_id = self.can_id;
         let is_extended_id = self.ext_flag > 0;
         let is_remote_frame = self.rem_flag > 0;
@@ -35,8 +41,8 @@ impl Into<CanMessage> for ZCanFrameVCI {
         let length = self.can_len as usize;
         let mut data = self.data.to_vec();
         data.resize(length, Default::default());
-        CanMessage {
-            timestamp,
+        ZCanFrame {
+            timestamp: Some(timestamp),
             arbitration_id,
             is_extended_id,
             is_remote_frame,
@@ -44,8 +50,8 @@ impl Into<CanMessage> for ZCanFrameVCI {
             channel,
             length,
             data,
-            can_type: CanType::Can,
-            direct: CanDirect::Receive,
+            kind: CanKind::Classical,
+            direction: CanDirection::Receive,
             bitrate_switch: false,
             error_state_indicator: false,
             tx_mode: None,
@@ -53,10 +59,13 @@ impl Into<CanMessage> for ZCanFrameVCI {
     }
 }
 
-impl From<CanMessage> for ZCanFrameVCI {
-    fn from(msg: CanMessage) -> Self {
+impl From<ZCanFrame> for ZCanFrameVCI {
+    fn from(msg: ZCanFrame) -> Self {
         let can_id = msg.arbitration_id;
-        let timestamp = msg.timestamp as u32;
+        let timestamp = msg
+            .timestamp
+            .map(|t| (t.nanos / 1_000) as u32)
+            .unwrap_or_default();
         let time_flag = TIME_FLAG_VALID;
         let tx_mode = msg.tx_mode();
         let rem_flag = if msg.is_remote_frame { 1 } else { 0 };
@@ -115,21 +124,20 @@ impl<const S: usize> Default for ZCanMsg20<S> {
     }
 }
 
-impl<const S: usize> Into<CanMessage> for ZCanMsg20<S> {
-    fn into(self) -> CanMessage {
+impl<const S: usize> Into<ZCanFrame> for ZCanMsg20<S> {
+    fn into(self) -> ZCanFrame {
         let length = self.can_len as usize;
         let mut data = self.data.to_vec();
         data.resize(length, Default::default());
-        let can_type = can_utils::can_type(S).unwrap();
-        // let mut can_type = can_utils::can_type(S).unwrap();
-        // match (self.flags & (0x03 << 4)) >> 4 {
-        //     0x00 => can_type = CanType::Can,
-        //     0x01 => can_type = CanType::CanFd,
-        //     _ => {}
-        // }
+        #[allow(deprecated)]
+        let kind = can_utils::can_kind_by_len(S).unwrap();
+        let timestamp = Timestamp {
+            nanos: self.timestamp as u128 * 1_000,
+            source: TimestampSource::Hardware,
+        };
 
-        CanMessage {
-            timestamp: self.timestamp as u64,
+        ZCanFrame {
+            timestamp: Some(timestamp),
             arbitration_id: self.can_id,
             is_extended_id: (self.flags & (0x01 << 9)) > 0,
             is_remote_frame: (self.flags & (0x01 << 8)) > 0,
@@ -137,41 +145,44 @@ impl<const S: usize> Into<CanMessage> for ZCanMsg20<S> {
             channel: self.channel,
             length,
             data,
-            can_type,
-            direct: CanDirect::Receive,
-            bitrate_switch: match can_type {
-                CanType::Can => false,
-                CanType::CanFd => (self.flags & (0x01 << 11)) > 0,
-                CanType::CanXl => todo!(),
+            kind,
+            direction: CanDirection::Receive,
+            bitrate_switch: match kind {
+                CanKind::Classical => false,
+                CanKind::FD => (self.flags & (0x01 << 11)) > 0,
+                CanKind::XL => todo!("XL is not supported!"),
             },
-            error_state_indicator: match can_type {
-                CanType::Can => false,
-                CanType::CanFd => (self.flags & (0x01 << 12)) > 0,
-                CanType::CanXl => todo!(),
+            error_state_indicator: match kind {
+                CanKind::Classical => false,
+                CanKind::FD => (self.flags & (0x01 << 12)) > 0,
+                CanKind::XL => todo!("XL is not supported!"),
             },
             tx_mode: Some((self.flags & 0x3) as u8),
         }
     }
 }
 
-impl<const S: usize> From<CanMessage> for ZCanMsg20<S> {
-    fn from(msg: CanMessage) -> Self {
+impl<const S: usize> From<ZCanFrame> for ZCanMsg20<S> {
+    fn from(msg: ZCanFrame) -> Self {
         let flags = (msg.tx_mode() as u32)
-            | match msg.can_type {
-                CanType::Can => 0,
-                CanType::CanFd => 0x01u32 >> 4,
-                CanType::CanXl => todo!(),
+            | match msg.kind {
+                CanKind::Classical => 0,
+                CanKind::FD => 0x01 << 4,
+                CanKind::XL => todo!("XL is not supported!"),
             }
-            | if msg.is_remote_frame { 0x01u32 >> 8 } else { 0 }
-            | if msg.is_extended_id { 0x01u32 >> 9 } else { 0 }
-            | if msg.is_error_frame { 0x01u32 >> 10 } else { 0 }
-            | if msg.bitrate_switch { 0x01u32 >> 11 } else { 0 }
+            | if msg.is_remote_frame { 0x01 << 8 } else { 0 }
+            | if msg.is_extended_id { 0x01 << 9 } else { 0 }
+            | if msg.is_error_frame { 0x01 << 10 } else { 0 }
+            | if msg.bitrate_switch { 0x01 << 11 } else { 0 }
             | if msg.error_state_indicator {
-                0x01u32 >> 12
+                0x01 << 12
             } else {
                 0
             };
-        let timestamp = msg.timestamp as u32;
+        let timestamp = msg
+            .timestamp
+            .map(|t| (t.nanos / 1_000) as u32)
+            .unwrap_or_default();
         let can_id = msg.arbitration_id;
         let channel = msg.channel;
         let can_len = msg.length as u8;

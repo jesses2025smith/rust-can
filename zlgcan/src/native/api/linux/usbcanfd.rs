@@ -1,5 +1,5 @@
 use crate::native::{
-    can::{ZCanChlError, ZCanChlStatus, ZCanFdChlCfgInner, ZCanFrame},
+    can::{ZCanChlError, ZCanChlStatus, ZCanFdChlCfgInner, ZCanFrameUnion},
     device::ZDeviceInfo,
     lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe},
 };
@@ -35,13 +35,13 @@ pub(crate) struct USBCANFDApi<'a> {
     /// EXTERN_C U32 ZCAN_API VCI_ResetCAN(U32 Type, U32 Card, U32 Port);
     pub(crate) VCI_ResetCAN: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint) -> c_uint>,
     /// EXTERN_C U32 ZCAN_API VCI_Transmit(U32 Type, U32 Card, U32 Port, ZCAN_20_MSG *pData, U32 Count);
-    pub(crate) VCI_Transmit: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) VCI_Transmit: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *const ZCanFrameUnion, len: c_uint) -> c_uint>,
     /// EXTERN_C U32 ZCAN_API VCI_TransmitFD(U32 Type, U32 Card, U32 Port, ZCAN_FD_MSG *pData, U32 Count);
-    pub(crate) VCI_TransmitFD: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) VCI_TransmitFD: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *const ZCanFrameUnion, len: c_uint) -> c_uint>,
     /// EXTERN_C U32 ZCAN_API VCI_Receive(U32 Type, U32 Card, U32 Port, ZCAN_20_MSG *pData, U32 Count, U32 Time);
-    pub(crate) VCI_Receive: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) VCI_Receive: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *mut ZCanFrameUnion, size: c_uint, timeout: c_uint) -> c_uint>,
     /// EXTERN_C U32 ZCAN_API VCI_ReceiveFD(U32 Type, U32 Card, U32 Port, ZCAN_FD_MSG *pData, U32 Count, U32 Time);
-    pub(crate) VCI_ReceiveFD: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) VCI_ReceiveFD: Symbol<'a, unsafe extern "C" fn(dev_type: c_uint, dev_idx: c_uint, channel: c_uint, frames: *mut ZCanFrameUnion, size: c_uint, timeout: c_uint) -> c_uint>,
     /// EXTERN_C U32 ZCAN_API VCI_Debug(U32 Debug);
     pub(crate) VCI_Debug: Symbol<'a, unsafe extern "C" fn(debug: c_uint) -> c_uint>,
 
@@ -88,13 +88,13 @@ mod tests {
         constants,
         native::{
             api::{ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
-            can::{CanMessage, ZCanChlMode, ZCanChlType},
+            can::{ZCanChlMode, ZCanChlType, ZCanFrame},
             constants::LOAD_LIB_FAILED,
             device::ZCanDeviceType,
         },
     };
     use dlopen2::symbor::{Library, SymBorApi};
-    use rs_can::{CanError, CanFrame, CanId, ChannelConfig};
+    use rs_can::{CanFrame, CanId, ChannelConfig};
 
     #[test]
     fn test_init_channel() -> anyhow::Result<()> {
@@ -128,16 +128,14 @@ mod tests {
 
         let mut context = ZChannelContext::new(context, channel);
         api.init_can_chl("library", &mut context, &cfg)?;
-        let frame = CanMessage::new(
-            CanId::from_bits(0x7E0, Some(false)),
+        let frame = ZCanFrame::new_can(
+            CanId::try_from(0x7E0).unwrap(),
             [0x01, 0x02, 0x03].as_slice(),
-        )
-        .ok_or(CanError::other_error("invalid data length"))?;
-        let frame1 = CanMessage::new(
-            CanId::from_bits(0x1888FF00, Some(true)),
+        )?;
+        let frame1 = ZCanFrame::new_can(
+            CanId::try_from(0x1888FF00).unwrap(),
             [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice(),
-        )
-        .ok_or(CanError::other_error("invalid data length"))?;
+        )?;
         let frames = vec![frame, frame1];
         let ret = api.transmit_can(&context, frames)?;
         assert_eq!(ret, 2);

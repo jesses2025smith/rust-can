@@ -1,7 +1,7 @@
 /// `typedef.rs` defined the zlgcan device type and some function supported feature.
-// use rs_can::CanError;
 
 #[allow(non_camel_case_types, dead_code)]
+#[cfg_attr(feature = "pyo3", pyo3::pyclass(from_py_object))]
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ZCanDeviceType {
@@ -194,9 +194,9 @@ impl ZCanDeviceType {
         matches!(
             self,
             Self::ZCAN_USBCANFD_MINI
-            | Self::ZCAN_USBCANFD_100U
-            | Self::ZCAN_USBCANFD_200U
-            | Self::ZCAN_USBCANFD_400U
+                | Self::ZCAN_USBCANFD_100U
+                | Self::ZCAN_USBCANFD_200U
+                | Self::ZCAN_USBCANFD_400U
         )
     }
     #[inline(always)]

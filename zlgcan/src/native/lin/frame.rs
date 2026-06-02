@@ -1,5 +1,5 @@
 use crate::native::lin::enums::{ZLinCheckSumMode, ZLinDataType};
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::{c_uchar, c_ulong, c_ushort};
 
 #[repr(C)]
@@ -145,7 +145,7 @@ pub struct ZLinPublishEx {
 }
 
 impl ZLinPublishEx {
-    pub fn new<T>(pid: u8, data: T, cs_mode: ZLinCheckSumMode) -> Result<Self, CanError>
+    pub fn new<T>(pid: u8, data: T, cs_mode: ZLinCheckSumMode) -> CanResult<Self>
     where
         T: AsRef<[u8]>,
     {

@@ -1,20 +1,48 @@
-mod constants;
 mod driver;
 mod frame;
 mod socket;
 
-pub use self::{constants::*, driver::*, frame::*, socket::*};
+pub use self::{driver::*, frame::*, socket::*};
 
-use rs_can::{CanDevice, CanError, CanFilter, CanFrame, CanResult, DeviceBuilder};
+use rs_can::{CanDevice, CanDirection, CanError, CanFrame, CanResult, ChannelMode, DeviceBuilder};
 use std::{sync::Arc, time::Duration};
-
-unsafe impl Send for SocketCan {}
-unsafe impl Sync for SocketCan {}
 
 #[async_trait::async_trait]
 impl CanDevice for SocketCan {
     type Channel = String;
-    type Frame = CanMessage;
+    type Frame = SocketCanFrame;
+
+    fn new(builder: DeviceBuilder<String>) -> CanResult<Self> {
+        let mut device = SocketCan::new();
+        builder
+            .channel_configs()
+            .iter()
+            .try_for_each(|(chl, cfg)| {
+                let canfd = cfg.data_bitrate.is_some();
+                device.init_channel(chl, canfd)?;
+
+                if !cfg.filters.is_empty() {
+                    device.set_filters(chl, &cfg.filters)?;
+                }
+
+                if let Some(mode) = cfg.mode {
+                    match mode {
+                        ChannelMode::Normal => {}
+                        ChannelMode::Loopback => device.set_loopback(chl, true)?,
+                        ChannelMode::ListenOnly => return Err(CanError::NotSupportedError),
+                        ChannelMode::OneShot => return Err(CanError::NotSupportedError),
+                    }
+                }
+
+                if let Some(recv_own_msg) = cfg.recv_own_msg {
+                    device.set_recv_own_msgs(chl, recv_own_msg)?;
+                }
+
+                Ok(())
+            })?;
+
+        Ok(device)
+    }
 
     #[inline(always)]
     fn opened_channels(&self) -> Vec<Self::Channel> {
@@ -22,7 +50,9 @@ impl CanDevice for SocketCan {
     }
 
     #[inline(always)]
-    async fn transmit(&self, msg: Self::Frame, timeout: Option<u32>) -> CanResult<(), CanError> {
+    async fn transmit(&self, msg: Self::Frame, timeout: Option<u32>) -> CanResult<()> {
+        let mut msg = msg;
+        msg.set_direction(CanDirection::Transmit);
         match timeout {
             Some(timeout) => self.write_timeout(msg, Duration::from_millis(timeout as u64)),
             None => self.write(msg),
@@ -34,9 +64,11 @@ impl CanDevice for SocketCan {
         &self,
         channel: Self::Channel,
         timeout: Option<u32>,
-    ) -> CanResult<Vec<Self::Frame>, CanError> {
-        let timeout = timeout.unwrap_or(0);
-        let mut msg = self.read_timeout(&channel, Duration::from_millis(timeout as u64))?;
+    ) -> CanResult<Vec<Self::Frame>> {
+        let mut msg = match timeout {
+            Some(timeout) => self.read_timeout(&channel, Duration::from_millis(timeout as u64))?,
+            None => self.read(&channel)?,
+        };
         msg.set_channel(channel);
         // .set_direct(CanDirect::Receive);
         Ok(vec![msg])
@@ -48,36 +80,5 @@ impl CanDevice for SocketCan {
             Some(s) => s.clear(),
             None => (),
         }
-    }
-}
-
-impl TryFrom<DeviceBuilder<String>> for SocketCan {
-    type Error = CanError;
-
-    fn try_from(builder: DeviceBuilder<String>) -> Result<Self, Self::Error> {
-        let mut device = SocketCan::new();
-        builder
-            .channel_configs()
-            .iter()
-            .try_for_each(|(chl, cfg)| {
-                let canfd = cfg.get_other::<bool>(CANFD)?.unwrap_or_default();
-                device.init_channel(chl, canfd)?;
-
-                if let Some(filters) = cfg.get_other::<Vec<CanFilter>>(FILTERS)? {
-                    device.set_filters(chl, &filters)?;
-                }
-
-                if let Some(loopback) = cfg.get_other::<bool>(LOOPBACK)? {
-                    device.set_loopback(chl, loopback)?;
-                }
-
-                if let Some(recv_own_msg) = cfg.get_other::<bool>(RECV_OWN_MSG)? {
-                    device.set_recv_own_msgs(chl, recv_own_msg)?;
-                }
-
-                Ok(())
-            })?;
-
-        Ok(device)
     }
 }

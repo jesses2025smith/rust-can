@@ -3,11 +3,11 @@ use crate::native::{
     device::{CmdPath, IProperty, ZDeviceInfo},
     util::c_str_to_string,
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::{c_char, CString};
 
 impl ZDeviceApi for USBCANFD800UApi<'_> {
-    fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
+    fn open(&self, context: &mut ZDeviceContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_OpenDevice)(context.dev_type as u32, context.dev_idx, 0) } {
             Self::INVALID_DEVICE_HANDLE => Err(CanError::InitializeError(format!(
                 "`ZCAN_OpenDevice` ret: {}",
@@ -20,7 +20,7 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn close(&self, context: &ZDeviceContext) -> Result<(), CanError> {
+    fn close(&self, context: &ZDeviceContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_CloseDevice)(context.device_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -30,7 +30,7 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn read_device_info(&self, context: &ZDeviceContext) -> Result<ZDeviceInfo, CanError> {
+    fn read_device_info(&self, context: &ZDeviceContext) -> CanResult<ZDeviceInfo> {
         let mut info = ZDeviceInfo::default();
         match unsafe { (self.ZCAN_GetDeviceInf)(context.device_handler()?, &mut info) } {
             Self::STATUS_OK => Ok(info),
@@ -41,7 +41,7 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn get_property(&self, context: &ZChannelContext) -> Result<IProperty, CanError> {
+    fn get_property(&self, context: &ZChannelContext) -> CanResult<IProperty> {
         let ret = unsafe { (self.GetIProperty)(context.channel_handler()?) };
         if ret.is_null() {
             Err(CanError::OperationError(format!(
@@ -53,7 +53,7 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn release_property(&self, p: &IProperty) -> Result<(), CanError> {
+    fn release_property(&self, p: &IProperty) -> CanResult<()> {
         match unsafe { (self.ReleaseIProperty)(p) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -67,7 +67,7 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
         &self,
         context: &ZChannelContext,
         values: Vec<(CmdPath, *const c_char)>,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         unsafe {
             let p = self.get_property(context)?;
             match p.SetValue {
@@ -94,11 +94,7 @@ impl ZDeviceApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn get_values(
-        &self,
-        context: &ZChannelContext,
-        paths: Vec<CmdPath>,
-    ) -> Result<Vec<String>, CanError> {
+    fn get_values(&self, context: &ZChannelContext, paths: Vec<CmdPath>) -> CanResult<Vec<String>> {
         unsafe {
             let p = self.get_property(context)?;
             match p.GetValue {

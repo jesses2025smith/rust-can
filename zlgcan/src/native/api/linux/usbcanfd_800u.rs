@@ -1,12 +1,12 @@
 use crate::{
     constants,
     native::{
-        can::{ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFrame},
+        can::{ZCanChlCfg, ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFrameUnion},
         device::{CmdPath, IProperty, ZCanDeviceType, ZDeviceInfo},
     },
 };
 use dlopen2::symbor::{SymBorApi, Symbol};
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 use std::ffi::{c_uchar, c_uint, c_void};
 
 #[rustfmt::skip]
@@ -37,13 +37,13 @@ pub(crate) struct USBCANFD800UApi<'a> {
     /// UINT FUNC_CALL ZCAN_GetReceiveNum(CHANNEL_HANDLE channel_handle, BYTE type);    //type:TYPE_CAN, TYPE_CANFD, TYPE_ALL_DATA
     pub(crate) ZCAN_GetReceiveNum: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, can_type: c_uchar) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_Transmit(CHANNEL_HANDLE channel_handle, ZCAN_Transmit_Data* pTransmit, UINT len);
-    pub(crate) ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrameUnion, len: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_Receive(CHANNEL_HANDLE channel_handle, ZCAN_Receive_Data* pReceive, UINT len, int wait_time DEF(-1));
-    pub(crate) ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrameUnion, size: c_uint, timeout: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_TransmitFD(CHANNEL_HANDLE channel_handle, ZCAN_TransmitFD_Data* pTransmit, UINT len);
-    pub(crate) ZCAN_TransmitFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) ZCAN_TransmitFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrameUnion, len: c_uint) -> c_uint>,
     /// UINT FUNC_CALL ZCAN_ReceiveFD(CHANNEL_HANDLE channel_handle, ZCAN_ReceiveFD_Data* pReceive, UINT len, int wait_time DEF(-1));
-    pub(crate) ZCAN_ReceiveFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) ZCAN_ReceiveFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *mut ZCanFrameUnion, size: c_uint, timeout: c_uint) -> c_uint>,
 
     /// UINT FUNC_CALL ZCAN_TransmitData(DEVICE_HANDLE device_handle, ZCANDataObj* pTransmit, UINT len);
     // ZCAN_TransmitData: Symbol<'a, unsafe extern "C" fn(dev_hdl: c_uint, data: *const ZCANDataObj, len: c_uint) -> c_uint>,
@@ -121,10 +121,10 @@ impl USBCANFD800UApi<'_> {
         dev_idx: u32,
         channel: u8,
         cfg: &ChannelConfig,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         // set channel resistance status
         if dev_type.has_resistance() {
-            let state = cfg.resistance().unwrap_or(true) as u32;
+            let state = cfg.termination.unwrap_or(true) as u32;
             let cmd_path = CmdPath::new_reference(USBCANFD800UApi::REF_INTERNAL_RESISTANCE);
             self.self_set_reference(
                 dev_type,
@@ -156,7 +156,7 @@ impl USBCANFD800UApi<'_> {
         channel: u8,
         cmd: c_uint,
         value: *const c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         match unsafe {
             (self.ZCAN_SetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value)
         } {
@@ -176,7 +176,7 @@ impl USBCANFD800UApi<'_> {
         channel: u8,
         cmd: c_uint,
         value: *mut c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         match unsafe {
             (self.ZCAN_GetReference)(dev_type as u32, dev_idx, channel as u32, cmd, value)
         } {

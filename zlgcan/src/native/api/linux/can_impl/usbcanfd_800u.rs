@@ -3,13 +3,13 @@ use crate::{
     native::{
         api::{USBCANFD800UApi, ZCanApi, ZChannelContext},
         can::{
-            common::CanChlCfgContext, constants::BITRATE_CFG_FILENAME, CanMessage, ZCanChlCfg,
-            ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFdFrameInner, ZCanFrame, ZCanFrameInner,
-            ZCanFrameType,
+            common::CanChlCfgContext, constants::BITRATE_CFG_FILENAME, ZCanChlCfg, ZCanChlError,
+            ZCanChlStatus, ZCanChlType, ZCanFdFrameInner, ZCanFrame, ZCanFrameInner, ZCanFrameType,
+            ZCanFrameUnion,
         },
     },
 };
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 
 impl ZCanApi for USBCANFD800UApi<'_> {
     fn init_can_chl(
@@ -17,7 +17,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         libpath: &str,
         context: &mut ZChannelContext,
         cfg: &ChannelConfig,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         unsafe {
             // init can channel
             let (dev_type, dev_hdl, channel) = (
@@ -57,7 +57,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn reset_can_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn reset_can_chl(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_ResetCAN)(context.channel_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -67,7 +67,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError> {
+    fn read_can_chl_status(&self, context: &ZChannelContext) -> CanResult<ZCanChlStatus> {
         let mut status: ZCanChlStatus = Default::default();
         match unsafe { (self.ZCAN_ReadChannelStatus)(context.channel_handler()?, &mut status) } {
             Self::STATUS_OK => Ok(status),
@@ -78,7 +78,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError> {
+    fn read_can_chl_error(&self, context: &ZChannelContext) -> CanResult<ZCanChlError> {
         let mut info: ZCanChlError = ZCanChlError {
             v1: Default::default(),
         };
@@ -91,7 +91,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn clear_can_buffer(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn clear_can_buffer(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_ClearBuffer)(context.channel_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -101,11 +101,7 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         }
     }
 
-    fn get_can_num(
-        &self,
-        context: &ZChannelContext,
-        can_type: ZCanFrameType,
-    ) -> Result<u32, CanError> {
+    fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> CanResult<u32> {
         let ret = unsafe { (self.ZCAN_GetReceiveNum)(context.channel_handler()?, can_type as u8) };
         if ret > 0 {
             rsutil::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
@@ -118,11 +114,11 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let mut frames = Vec::new();
         frames.resize(
             size as usize,
-            ZCanFrame {
+            ZCanFrameUnion {
                 can: ZCanFrameInner {
                     libother: Default::default(),
                 },
@@ -156,14 +152,10 @@ impl ZCanApi for USBCANFD800UApi<'_> {
             .collect::<Vec<_>>())
     }
 
-    fn transmit_can(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<CanMessage>,
-    ) -> Result<u32, CanError> {
+    fn transmit_can(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|frame| ZCanFrame {
+            .map(|frame| ZCanFrameUnion {
                 can: ZCanFrameInner {
                     libother: frame.into(),
                 },
@@ -189,11 +181,11 @@ impl ZCanApi for USBCANFD800UApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let mut frames = Vec::new();
         frames.resize(
             size as usize,
-            ZCanFrame {
+            ZCanFrameUnion {
                 canfd: ZCanFdFrameInner {
                     libother: Default::default(),
                 },
@@ -227,14 +219,10 @@ impl ZCanApi for USBCANFD800UApi<'_> {
             .collect::<Vec<_>>())
     }
 
-    fn transmit_canfd(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<CanMessage>,
-    ) -> Result<u32, CanError> {
+    fn transmit_canfd(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|frame| ZCanFrame {
+            .map(|frame| ZCanFrameUnion {
                 canfd: ZCanFdFrameInner {
                     libother: frame.into(),
                 },

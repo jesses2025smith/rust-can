@@ -2,7 +2,7 @@ use dlopen2::symbor::{SymBorApi, Symbol};
 use std::ffi::c_void;
 
 use crate::native::{
-    can::{common::ZCanChlCfgInner, ZCanChlError, ZCanChlStatus, ZCanFrame},
+    can::{common::ZCanChlCfgInner, ZCanChlError, ZCanChlStatus, ZCanFrameUnion},
     device::ZDeviceInfo,
 };
 
@@ -36,9 +36,9 @@ pub(crate) struct USBCANApi<'a> {
     /// EXTERN_C DWORD VCI_ResetCAN(DWORD DeviceType,DWORD DeviceInd,DWORD CANInd);
     pub(crate) VCI_ResetCAN: Symbol<'a, unsafe extern "C" fn(dev_type: u32, dev_index: u32, channel: u32) -> u32>,
     /// EXTERN_C ULONG VCI_Transmit(DWORD DeviceType,DWORD DeviceInd,DWORD CANInd,PVCI_CAN_OBJ pSend,UINT Len);
-    pub(crate) VCI_Transmit: Symbol<'a, unsafe extern "C" fn(dev_type: u32, dev_index: u32, channel: u32, frames: *const ZCanFrame, len: u32) -> u32>,
+    pub(crate) VCI_Transmit: Symbol<'a, unsafe extern "C" fn(dev_type: u32, dev_index: u32, channel: u32, frames: *const ZCanFrameUnion, len: u32) -> u32>,
     /// EXTERN_C ULONG VCI_Receive(DWORD DeviceType,DWORD DeviceInd,DWORD CANInd,PVCI_CAN_OBJ pReceive,UINT Len,INT WaitTime);
-    pub(crate) VCI_Receive: Symbol<'a, unsafe extern "C" fn(dev_type: u32, dev_index: u32, channel: u32, frames: *mut ZCanFrame, size: u32, timeout: u32) -> u32>,
+    pub(crate) VCI_Receive: Symbol<'a, unsafe extern "C" fn(dev_type: u32, dev_index: u32, channel: u32, frames: *mut ZCanFrameUnion, size: u32, timeout: u32) -> u32>,
 }
 
 impl USBCANApi<'_> {
@@ -52,12 +52,12 @@ mod tests {
     use super::USBCANApi;
     use crate::{
         api::{ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
-        can::{CanMessage, ZCanChlMode, ZCanChlType},
+        can::{ZCanChlMode, ZCanChlType, ZCanFrame},
         constants,
         native::{constants::LOAD_LIB_FAILED, device::ZCanDeviceType},
     };
     use dlopen2::symbor::{Library, SymBorApi};
-    use rs_can::{CanError, CanFrame, CanId, ChannelConfig};
+    use rs_can::{CanFrame, CanId, ChannelConfig};
 
     #[test]
     fn test_init_channel() -> anyhow::Result<()> {
@@ -90,16 +90,14 @@ mod tests {
 
         let mut context = ZChannelContext::new(context, channel);
         api.init_can_chl("library", &mut context, &cfg)?;
-        let frame = CanMessage::new(
-            CanId::from_bits(0x7E0, Some(false)),
+        let frame = ZCanFrame::new_can(
+            CanId::try_from(0x7E0).unwrap(),
             [0x01, 0x02, 0x03].as_slice(),
-        )
-        .ok_or(CanError::other_error("invalid data length"))?;
-        let frame1 = CanMessage::new(
-            CanId::from_bits(0x1888FF00, Some(true)),
+        )?;
+        let frame1 = ZCanFrame::new_can(
+            CanId::try_from(0x1888FF00).unwrap(),
             [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08].as_slice(),
-        )
-        .ok_or(CanError::other_error("invalid data length"))?;
+        )?;
         let frames = vec![frame, frame1];
         let ret = api.transmit_can(&context, frames)?;
         assert_eq!(ret, 2);

@@ -3,10 +3,10 @@ use crate::native::{
     can::{
         common::{CanChlCfgContext, ZCanChlCfgInner},
         constants::BITRATE_CFG_FILENAME,
-        CanMessage, ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanFrameInner, ZCanFrameType,
+        ZCanChlError, ZCanChlStatus, ZCanFrame, ZCanFrameInner, ZCanFrameType, ZCanFrameUnion,
     },
 };
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 
 impl ZCanApi for USBCANApi<'_> {
     fn init_can_chl(
@@ -14,7 +14,7 @@ impl ZCanApi for USBCANApi<'_> {
         libpath: &str,
         context: &mut ZChannelContext,
         cfg: &ChannelConfig,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -54,7 +54,7 @@ impl ZCanApi for USBCANApi<'_> {
         }
     }
 
-    fn reset_can_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn reset_can_chl(&self, context: &ZChannelContext) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -69,7 +69,7 @@ impl ZCanApi for USBCANApi<'_> {
         }
     }
 
-    fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError> {
+    fn read_can_chl_status(&self, context: &ZChannelContext) -> CanResult<ZCanChlStatus> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -87,7 +87,7 @@ impl ZCanApi for USBCANApi<'_> {
         }
     }
 
-    fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError> {
+    fn read_can_chl_error(&self, context: &ZChannelContext) -> CanResult<ZCanChlError> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -106,7 +106,7 @@ impl ZCanApi for USBCANApi<'_> {
         }
     }
 
-    fn clear_can_buffer(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn clear_can_buffer(&self, context: &ZChannelContext) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -121,11 +121,7 @@ impl ZCanApi for USBCANApi<'_> {
         }
     }
 
-    fn get_can_num(
-        &self,
-        context: &ZChannelContext,
-        can_type: ZCanFrameType,
-    ) -> Result<u32, CanError> {
+    fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> CanResult<u32> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -149,7 +145,7 @@ impl ZCanApi for USBCANApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -158,7 +154,7 @@ impl ZCanApi for USBCANApi<'_> {
         let mut frames = Vec::new();
         frames.resize(
             size as usize,
-            ZCanFrame {
+            ZCanFrameUnion {
                 can: ZCanFrameInner {
                     libusbcan: Default::default(),
                 },
@@ -191,14 +187,10 @@ impl ZCanApi for USBCANApi<'_> {
             .collect::<Vec<_>>())
     }
 
-    fn transmit_can(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<CanMessage>,
-    ) -> Result<u32, CanError> {
+    fn transmit_can(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|frame| ZCanFrame {
+            .map(|frame| ZCanFrameUnion {
                 can: ZCanFrameInner {
                     libusbcan: frame.into(),
                 },

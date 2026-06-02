@@ -14,11 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Check debug code
-        run:  >
+        run: >
           cargo check
           # --verbose
       - name: Check release code
-        run:  >
+        run: >
           cargo check
           --release
           # --verbose
@@ -28,25 +28,25 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Check debug code
-        run:  >
+        run: >
           cargo check
           # --verbose
       - name: Check release code
-        run:  >
+        run: >
           cargo check
           --release
           # --verbose
-  publish:
-    name: Publish to crates.io
+  publish-linux:
+    name: Publish Linux crates
     needs: [windows, linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Publish
+      - name: Publish Linux-compatible crates
         run: |
           set -e
-          CRATES=(rs-can nican socketcan zlgcan)
-          
+          CRATES=(rs-can socketcan zlgcan)
+
           for CRATE in "${CRATES[@]}"; do
             echo "Checking $CRATE version..."
             VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r \
@@ -58,9 +58,38 @@ jobs:
             if [ "$EXISTS" == "$VERSION" ]; then
               echo "$CRATE version $VERSION is already published. Skipping."
             else
-              echo "Publishing {CRATE}..."
+              echo "Publishing $CRATE..."
               cargo publish -p ${CRATE} --locked --verbose --token ${{ secrets.CRATES_TOKEN }}
               echo "Waiting for crates.io to sync..."
               sleep 15
             fi
           done
+
+  publish-windows:
+    name: Publish nican on i686 Windows
+    needs: [windows, linux]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Add i686 Windows target
+        run: rustup target add i686-pc-windows-msvc
+      - name: Publish nican (i686 only)
+        shell: bash
+        run: |
+          set -e
+          CRATE=nican
+          echo "Checking $CRATE version..."
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r \
+            ".packages[] | select(.name==\"$CRATE\") | .version")
+          echo "Detected $CRATE version: $VERSION"
+          EXISTS=$(curl -s https://crates.io/api/v1/crates/${CRATE} | jq -r \
+            ".versions[] | select(.num==\"$VERSION\") | .num" || true)
+
+          if [ "$EXISTS" == "$VERSION" ]; then
+            echo "$CRATE version $VERSION is already published. Skipping."
+          else
+            echo "Publishing $CRATE for i686-pc-windows-msvc..."
+            cargo publish -p ${CRATE} --target i686-pc-windows-msvc --locked --verbose --token ${{ secrets.CRATES_TOKEN }}
+            echo "Waiting for crates.io to sync..."
+            sleep 15
+          fi

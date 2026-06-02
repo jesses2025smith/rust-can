@@ -1,4 +1,4 @@
-use rs_can::{CanError, ChannelConfig, DeviceBuilder};
+use rs_can::{CanResult, ChannelConfig, DeviceBuilder};
 use zlgcan_rs::{
     can::{ZCanChlMode, ZCanChlType},
     device::ZCanDeviceType,
@@ -8,7 +8,7 @@ use zlgcan_rs::{
 
 pub const CHANNEL: u8 = 0;
 
-pub fn init_device() -> Result<ZDriver, CanError> {
+pub fn init_device() -> CanResult<ZDriver> {
     let dev_type = ZCanDeviceType::ZCAN_USBCANFD_200U;
 
     let mut builder = DeviceBuilder::new();

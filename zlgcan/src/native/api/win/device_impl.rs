@@ -4,11 +4,11 @@ use crate::native::{
     device::{CmdPath, IProperty, ZDeviceInfo},
     util::c_str_to_string,
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::{c_char, c_void, CString};
 
 impl ZDeviceApi for WinApi<'_> {
-    fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
+    fn open(&self, context: &mut ZDeviceContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_OpenDevice)(context.dev_type as u32, context.dev_idx, 0) } {
             Self::INVALID_DEVICE_HANDLE => Err(CanError::OperationError(format!(
                 "`ZCAN_OpenDevice` ret = {}",
@@ -20,7 +20,7 @@ impl ZDeviceApi for WinApi<'_> {
             }
         }
     }
-    fn close(&self, context: &ZDeviceContext) -> Result<(), CanError> {
+    fn close(&self, context: &ZDeviceContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_CloseDevice)(context.device_handler()?) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -29,7 +29,7 @@ impl ZDeviceApi for WinApi<'_> {
             ))),
         }
     }
-    fn read_device_info(&self, context: &ZDeviceContext) -> Result<ZDeviceInfo, CanError> {
+    fn read_device_info(&self, context: &ZDeviceContext) -> CanResult<ZDeviceInfo> {
         let mut info = ZDeviceInfo::default();
         match unsafe { (self.ZCAN_GetDeviceInf)(context.device_handler()?, &mut info) } {
             Self::STATUS_OK => Ok(info),
@@ -39,7 +39,7 @@ impl ZDeviceApi for WinApi<'_> {
             ))),
         }
     }
-    fn is_online(&self, context: &ZDeviceContext) -> Result<bool, CanError> {
+    fn is_online(&self, context: &ZDeviceContext) -> CanResult<bool> {
         unsafe {
             match (self.ZCAN_IsDeviceOnLine)(context.device_handler()?) {
                 STATUS_ONLINE => Ok(true),
@@ -51,7 +51,7 @@ impl ZDeviceApi for WinApi<'_> {
             }
         }
     }
-    fn get_property(&self, context: &ZChannelContext) -> Result<IProperty, CanError> {
+    fn get_property(&self, context: &ZChannelContext) -> CanResult<IProperty> {
         unsafe {
             let ret = (self.GetIProperty)(context.device_handler()?);
             if ret.is_null() {
@@ -64,7 +64,7 @@ impl ZDeviceApi for WinApi<'_> {
             }
         }
     }
-    fn release_property(&self, p: &IProperty) -> Result<(), CanError> {
+    fn release_property(&self, p: &IProperty) -> CanResult<()> {
         unsafe {
             match (self.ReleaseIProperty)(p) {
                 Self::STATUS_OK => Ok(()),
@@ -80,7 +80,7 @@ impl ZDeviceApi for WinApi<'_> {
         context: &ZChannelContext,
         cmd_path: &CmdPath,
         value: *const c_void,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         unsafe {
             let path = cmd_path.get_path();
             let _path = CString::new(path).map_err(|e| CanError::OtherError(e.to_string()))?;
@@ -97,11 +97,7 @@ impl ZDeviceApi for WinApi<'_> {
             }
         }
     }
-    fn get_value(
-        &self,
-        context: &ZChannelContext,
-        cmd_path: &CmdPath,
-    ) -> Result<*const c_void, CanError> {
+    fn get_value(&self, context: &ZChannelContext, cmd_path: &CmdPath) -> CanResult<*const c_void> {
         unsafe {
             let path = cmd_path.get_path();
             let path = CString::new(path).map_err(|e| CanError::OtherError(e.to_string()))?;
@@ -125,7 +121,7 @@ impl ZDeviceApi for WinApi<'_> {
         &self,
         context: &ZChannelContext,
         values: Vec<(CmdPath, *const c_char)>,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         unsafe {
             let p = self.get_property(context)?;
             match p.SetValue {
@@ -150,11 +146,7 @@ impl ZDeviceApi for WinApi<'_> {
             }
         }
     }
-    fn get_values(
-        &self,
-        context: &ZChannelContext,
-        paths: Vec<CmdPath>,
-    ) -> Result<Vec<String>, CanError> {
+    fn get_values(&self, context: &ZChannelContext, paths: Vec<CmdPath>) -> CanResult<Vec<String>> {
         unsafe {
             let p = self.get_property(context)?;
             let channel = context.channel;

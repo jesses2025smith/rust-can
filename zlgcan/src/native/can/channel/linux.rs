@@ -1,5 +1,5 @@
 use crate::native::can::{ZCanChlMode, ZCanChlType};
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::c_uint;
 
 /// Linux USBCANFD
@@ -50,7 +50,7 @@ pub(crate) fn get_fd_cfg(
     bitrate: u32,
     dbitrate: Option<u32>,
     ctx: &super::BitrateCtx,
-) -> Result<self::ZCanFdChlCfgInner, CanError> {
+) -> CanResult<self::ZCanFdChlCfgInner> {
     let (aset, dset) = super::get_fd_set(bitrate, dbitrate, ctx)?;
     let clock = ctx
         .clock

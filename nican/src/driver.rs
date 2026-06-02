@@ -1,5 +1,5 @@
-use crate::{api::*, constant, CanMessage};
-use rs_can::{CanError, CanFilter, CanFrame};
+use crate::{api::*, constant, NiCanFrame};
+use rs_can::{CanError, CanFilter, CanFrame, CanResult};
 use std::{
     collections::HashMap,
     ffi::{c_char, CStr, CString},
@@ -48,8 +48,11 @@ pub struct NiCan {
         unsafe extern "system" fn(NCTYPE_STATUS, NCTYPE_UINT32, NCTYPE_STRING) -> NCTYPE_STATUS,
 }
 
+unsafe impl Send for NiCan {}
+unsafe impl Sync for NiCan {}
+
 impl NiCan {
-    pub fn new(dll_path: Option<&str>) -> Result<Self, CanError> {
+    pub fn new(dll_path: Option<&str>) -> CanResult<Self> {
         let dll_path = dll_path.unwrap_or(r"Nican.dll");
         let dll_path = PCSTR::from_raw(dll_path.as_ptr());
         unsafe {
@@ -101,7 +104,7 @@ impl NiCan {
         filters: Vec<CanFilter>,
         bitrate: u32,
         log_errors: bool,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let mut attr_id = vec![NC_ATTR_START_ON_OPEN, NC_ATTR_LOG_COMM_ERRS];
         let mut attr_val = vec![1, if log_errors { 1 } else { 0 }];
 
@@ -115,12 +118,15 @@ impl NiCan {
                 ]);
                 attr_val.extend([0; 4])
             }
-            _ => filters.iter().for_each(|f| {
+            _ => filters.iter().for_each(|&f| {
                 attr_id.extend([NC_ATTR_CAN_COMP_XTD, NC_ATTR_CAN_MASK_XTD]);
-                if f.extended {
-                    attr_val.extend([f.can_id | NC_FL_CAN_ARBID_XTD, f.can_mask]);
-                } else {
-                    attr_val.extend([f.can_id, f.can_mask]);
+                match f {
+                    CanFilter::Standard { id, mask } => {
+                        attr_val.extend([id.as_raw() as u32, mask as u32]);
+                    }
+                    CanFilter::Extended { id, mask } => {
+                        attr_val.extend([id.as_raw() | NC_FL_CAN_ARBID_XTD, mask]);
+                    }
                 }
             }),
         }
@@ -139,7 +145,7 @@ impl NiCan {
         };
         if ret != 0 {
             return Err(CanError::InitializeError(
-                "device configration error".into(),
+                "device Configuration error".into(),
             ));
         }
 
@@ -162,7 +168,7 @@ impl NiCan {
         Ok(())
     }
 
-    pub fn reset(&mut self, channel: String) -> Result<(), CanError> {
+    pub fn reset(&mut self, channel: String) -> CanResult<()> {
         match self.channels.get(&channel) {
             Some(ctx) => {
                 let ret = unsafe { (self.ncAction)(ctx.handle, NC_OP_RESET as NCTYPE_OPCODE, 0) };
@@ -182,7 +188,7 @@ impl NiCan {
         }
     }
 
-    pub fn close(&mut self, channel: String) -> Result<(), CanError> {
+    pub fn close(&mut self, channel: String) -> CanResult<()> {
         match self.channels.get(&channel) {
             Some(ctx) => {
                 let ret = unsafe { (self.ncCloseObject)(ctx.handle) };
@@ -203,7 +209,7 @@ impl NiCan {
         }
     }
 
-    pub fn transmit_can(&self, msg: CanMessage) -> Result<(), CanError> {
+    pub fn transmit_can(&self, msg: NiCanFrame) -> CanResult<()> {
         let channel = msg.channel();
         match self.channels.get(&channel) {
             Some(ctx) => {
@@ -218,11 +224,13 @@ impl NiCan {
                 };
 
                 if let Err(r) = self.check_status(channel.as_str(), ret) {
-                    rsutil::warn!(
+                    let info = format!(
                         "{} error {} when transmit",
                         Self::channel_info(&channel),
                         self.status_to_str(r)
-                    )
+                    );
+                    rsutil::warn!("{}", info);
+                    return Err(CanError::OperationError(info));
                 }
 
                 Ok(())
@@ -231,11 +239,7 @@ impl NiCan {
         }
     }
 
-    pub fn receive_can(
-        &self,
-        channel: String,
-        timeout: Option<u32>,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    pub fn receive_can(&self, channel: String, timeout: Option<u32>) -> CanResult<Vec<NiCanFrame>> {
         match self.channels.get(&channel) {
             Some(ctx) => {
                 if let Err(ret) = self.wait_for_state(channel.as_str(), ctx.handle, timeout) {
@@ -275,7 +279,7 @@ impl NiCan {
                     return Err(CanError::OperationError(info));
                 }
 
-                let mut msg = <NCTYPE_CAN_STRUCT as TryInto<CanMessage>>::try_into(raw_msg)?;
+                let mut msg = <NCTYPE_CAN_STRUCT as TryInto<NiCanFrame>>::try_into(raw_msg)?;
                 msg.set_channel(channel.clone());
 
                 Ok(vec![msg])
@@ -290,17 +294,17 @@ impl NiCan {
     }
 
     #[inline]
-    pub fn filters(&self, channel: String) -> Result<Vec<CanFilter>, CanError> {
+    pub fn filters(&self, channel: String) -> CanResult<Vec<CanFilter>> {
         self.channel_util(channel, |ctx| Ok(ctx.filters.clone()))
     }
 
     #[inline]
-    pub fn bitrate(&self, channel: String) -> Result<u32, CanError> {
+    pub fn bitrate(&self, channel: String) -> CanResult<u32> {
         self.channel_util(channel, |ctx| Ok(ctx.bitrate))
     }
 
     #[inline]
-    pub fn is_log_errors(&self, channel: String) -> Result<bool, CanError> {
+    pub fn is_log_errors(&self, channel: String) -> CanResult<bool> {
         self.channel_util(channel, |ctx| Ok(ctx.log_errors))
     }
 
@@ -308,8 +312,8 @@ impl NiCan {
     fn channel_util<R>(
         &self,
         channel: String,
-        cb: fn(ctx: &NiCanContext) -> Result<R, CanError>,
-    ) -> Result<R, CanError> {
+        cb: fn(ctx: &NiCanContext) -> CanResult<R>,
+    ) -> CanResult<R> {
         match self.channels.get(&channel) {
             Some(ctx) => cb(ctx),
             None => Err(CanError::channel_not_opened(Self::channel_info(&channel))),

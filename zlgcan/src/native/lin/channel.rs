@@ -1,5 +1,5 @@
 use crate::native::lin::enums::{ZLinCheckSumMode, ZLinMode};
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::ffi::{c_uchar, c_uint};
 
 #[allow(non_snake_case)]
@@ -21,7 +21,7 @@ impl ZLinChlCfg {
         cs_mode: ZLinCheckSumMode,
         bitrate: u32,
         max_len: Option<u8>,
-    ) -> Result<Self, CanError> {
+    ) -> CanResult<Self> {
         match max_len {
             Some(v) => match v {
                 8..=64 => match bitrate {

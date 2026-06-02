@@ -2,14 +2,10 @@ use crate::native::{
     api::{USBCANFDApi, ZChannelContext, ZLinApi},
     lin::{ZLinChlCfg, ZLinFrame, ZLinPublish, ZLinSubscribe},
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 
 impl ZLinApi for USBCANFDApi<'_> {
-    fn init_lin_chl(
-        &self,
-        context: &mut ZChannelContext,
-        cfg: &ZLinChlCfg,
-    ) -> Result<(), CanError> {
+    fn init_lin_chl(&self, context: &mut ZChannelContext, cfg: &ZLinChlCfg) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -33,7 +29,7 @@ impl ZLinApi for USBCANFDApi<'_> {
             }
         }
     }
-    fn reset_lin_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn reset_lin_chl(&self, context: &ZChannelContext) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -47,7 +43,7 @@ impl ZLinApi for USBCANFDApi<'_> {
             ))),
         }
     }
-    fn clear_lin_buffer(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn clear_lin_buffer(&self, context: &ZChannelContext) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -61,7 +57,7 @@ impl ZLinApi for USBCANFDApi<'_> {
             ))),
         }
     }
-    fn get_lin_num(&self, context: &ZChannelContext) -> Result<u32, CanError> {
+    fn get_lin_num(&self, context: &ZChannelContext) -> CanResult<u32> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -78,7 +74,7 @@ impl ZLinApi for USBCANFDApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<ZLinFrame>, CanError> {
+    ) -> CanResult<Vec<ZLinFrame>> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -108,11 +104,7 @@ impl ZLinApi for USBCANFDApi<'_> {
         }
         Ok(frames)
     }
-    fn transmit_lin(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<ZLinFrame>,
-    ) -> Result<u32, CanError> {
+    fn transmit_lin(&self, context: &ZChannelContext, frames: Vec<ZLinFrame>) -> CanResult<u32> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -143,7 +135,7 @@ impl ZLinApi for USBCANFDApi<'_> {
         &self,
         context: &ZChannelContext,
         cfg: Vec<ZLinSubscribe>,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,
@@ -160,11 +152,7 @@ impl ZLinApi for USBCANFDApi<'_> {
             ))),
         }
     }
-    fn set_lin_publish(
-        &self,
-        context: &ZChannelContext,
-        cfg: Vec<ZLinPublish>,
-    ) -> Result<(), CanError> {
+    fn set_lin_publish(&self, context: &ZChannelContext, cfg: Vec<ZLinPublish>) -> CanResult<()> {
         let (dev_type, dev_idx, channel) = (
             context.device.dev_type,
             context.device.dev_idx,

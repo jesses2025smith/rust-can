@@ -39,7 +39,7 @@ zlgcan = { version="lastest-version" }
 
 ```rust
 use rs_can::{CanDevice, CanError, CanFrame, ChannelConfig, DeviceBuilder};
-use zlgcan_rs::{can::{CanMessage, ZCanChlMode, ZCanChlType}, device::ZCanDeviceType, driver::{ZDevice, ZDriver}, CHANNEL_MODE, CHANNEL_TYPE, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
+use zlgcan_rs::{can::{ZCanChlMode, ZCanFrame, ZCanChlType}, device::ZCanDeviceType, driver::{ZDevice, ZDriver}, CHANNEL_MODE, CHANNEL_TYPE, DEVICE_INDEX, DEVICE_TYPE, LIBPATH};
 
 #[tokio::main]
 async fn main() -> Result<(), CanError> {
@@ -63,7 +63,7 @@ async fn main() -> Result<(), CanError> {
     let device = builder.build::<ZDriver>()?;
 
     let data = vec![0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
-    let mut msg = CanMessage::new(0x7DF, &data).unwrap();
+    let mut msg = ZCanFrame::new(0x7DF, &data).unwrap();
     msg.set_channel(1);
 
     device.transmit(msg, None).await?;

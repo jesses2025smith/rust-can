@@ -1,4 +1,4 @@
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 use std::{
     ffi::{c_char, CStr},
     path::PathBuf,
@@ -17,7 +17,7 @@ const LIB_PATH: &str = "linux/x86_64/";
 const LIB_PATH: &str = "linux/aarch64/";
 
 #[inline]
-pub fn c_str_to_string(src: *const c_char) -> Result<String, CanError> {
+pub fn c_str_to_string(src: *const c_char) -> CanResult<String> {
     if src.is_null() {
         Err(CanError::other_error("null pointer error"))
     } else {

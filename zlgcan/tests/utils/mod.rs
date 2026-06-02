@@ -1,13 +1,14 @@
-use rand::{RngExt, prelude::ThreadRng};
+use rand::{prelude::ThreadRng, RngExt};
 use rs_can::{
-    CanError, CanFrame, CanId, ChannelConfig, DeviceBuilder, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
+    can_utils::system_timestamp, CanError, CanFdFlags, CanFrame, CanId, ChannelConfig,
+    DeviceBuilder, ExtendedId, StandardId, MAX_FD_FRAME_SIZE, MAX_FRAME_SIZE,
 };
 use std::{
     thread,
     time::{Duration, SystemTime},
 };
 use zlgcan_rs::{
-    can::{CanMessage, ZCanChlMode, ZCanChlType, ZCanFrameType, ZCanTxMode},
+    can::{ZCanChlMode, ZCanChlType, ZCanFrame, ZCanFrameType, ZCanTxMode},
     device::{DeriveInfo, ZCanDeviceType},
     driver::{ZCan, ZDevice, ZDriver},
     CHANNEL_MODE, CHANNEL_TYPE, DERIVE_INFO, DEVICE_INDEX, DEVICE_TYPE, LIBPATH,
@@ -31,11 +32,16 @@ fn new_messages(
     canfd: bool,
     extend: bool,
     brs: Option<bool>,
-) -> anyhow::Result<Vec<CanMessage>> {
+) -> anyhow::Result<Vec<ZCanFrame>> {
     let mut rng = rand::rng();
     let mut frames = Vec::new();
     for _ in 0..size {
-        let id = CanId::from_bits(generate_can_id(&mut rng, extend), Some(extend));
+        let raw_id = generate_can_id(&mut rng, extend);
+        let id: CanId = if extend {
+            CanId::Extended(ExtendedId::new(raw_id).map_err(|e| anyhow::anyhow!("{}", e))?)
+        } else {
+            CanId::Standard(StandardId::new(raw_id as u16).map_err(|e| anyhow::anyhow!("{}", e))?)
+        };
 
         let data = generate_data(
             &mut rng,
@@ -45,9 +51,14 @@ fn new_messages(
                 MAX_FRAME_SIZE
             },
         );
-        let mut frame = CanMessage::new(id, data.as_slice())
-            .ok_or(CanError::OtherError("invalid data length".to_string()))?;
-        frame.set_timestamp(None);
+        let mut frame = if canfd {
+            ZCanFrame::new_can_fd(id, data.as_slice(), CanFdFlags::empty())
+                .map_err(|e| CanError::OtherError(e.to_string()))?
+        } else {
+            ZCanFrame::new_can(id, data.as_slice())
+                .map_err(|e| CanError::OtherError(e.to_string()))?
+        };
+        frame.set_timestamp(Some(system_timestamp()));
         frame.set_tx_mode(ZCanTxMode::Normal);
 
         if canfd {

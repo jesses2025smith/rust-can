@@ -2,10 +2,10 @@ use crate::native::{
     api::{USBCANEApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
     device::{IProperty, ZDeviceInfo},
 };
-use rs_can::CanError;
+use rs_can::{CanError, CanResult};
 
 impl ZDeviceApi for USBCANEApi<'_> {
-    fn open(&self, context: &mut ZDeviceContext) -> Result<(), CanError> {
+    fn open(&self, context: &mut ZDeviceContext) -> CanResult<()> {
         let (dev_type, dev_idx) = (context.dev_type, context.dev_idx);
         match unsafe { (self.ZCAN_OpenDevice)(dev_type as u32, dev_idx, 0) } as u32 {
             Self::INVALID_DEVICE_HANDLE => Err(CanError::InitializeError(format!(
@@ -19,7 +19,7 @@ impl ZDeviceApi for USBCANEApi<'_> {
         }
     }
 
-    fn close(&self, context: &ZDeviceContext) -> Result<(), CanError> {
+    fn close(&self, context: &ZDeviceContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_CloseDevice)(context.device_handler()?) } as u32 {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -29,7 +29,7 @@ impl ZDeviceApi for USBCANEApi<'_> {
         }
     }
 
-    fn read_device_info(&self, context: &ZDeviceContext) -> Result<ZDeviceInfo, CanError> {
+    fn read_device_info(&self, context: &ZDeviceContext) -> CanResult<ZDeviceInfo> {
         let mut info = ZDeviceInfo::default();
         match unsafe { (self.ZCAN_GetDeviceInf)(context.device_handler()?, &mut info) } as u32 {
             Self::STATUS_OK => Ok(info),
@@ -40,11 +40,11 @@ impl ZDeviceApi for USBCANEApi<'_> {
         }
     }
 
-    fn get_property(&self, context: &ZChannelContext) -> Result<IProperty, CanError> {
+    fn get_property(&self, context: &ZChannelContext) -> CanResult<IProperty> {
         self.self_get_property(&context.device)
     }
 
-    fn release_property(&self, p: &IProperty) -> Result<(), CanError> {
+    fn release_property(&self, p: &IProperty) -> CanResult<()> {
         match unsafe { (self.ReleaseIProperty)(p) } {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(

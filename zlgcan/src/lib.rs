@@ -5,19 +5,49 @@ mod native;
 pub use native::*;
 
 use crate::{
-    can::{CanMessage, ZCanFrameType},
+    can::{ZCanFrame, ZCanFrameType},
     device::{DeriveInfo, ZCanDeviceType},
     driver::{ZCan, ZDevice, ZDriver},
 };
-use rs_can::{CanDevice, CanError, CanFrame, CanResult, CanType, DeviceBuilder};
-
-unsafe impl Send for ZDriver {}
-unsafe impl Sync for ZDriver {}
+use rs_can::{CanDevice, CanError, CanFrame, CanKind, CanResult, DeviceBuilder};
 
 #[async_trait::async_trait]
 impl CanDevice for ZDriver {
     type Channel = u8;
-    type Frame = CanMessage;
+    type Frame = ZCanFrame;
+
+    fn new(builder: DeviceBuilder<u8>) -> CanResult<Self> {
+        let libpath = builder
+            .get_other::<String>(LIBPATH)?
+            .ok_or(CanError::InitializeError(format!(
+                "`{}` not found",
+                LIBPATH
+            )))?;
+        let dev_type =
+            builder
+                .get_other::<ZCanDeviceType>(DEVICE_TYPE)?
+                .ok_or(CanError::InitializeError(format!(
+                    "`{}` not found",
+                    DEVICE_TYPE
+                )))?;
+        let dev_idx = builder
+            .get_other::<u32>(DEVICE_INDEX)?
+            .ok_or(CanError::InitializeError(format!(
+                "`{}` not found",
+                DEVICE_INDEX
+            )))?;
+        let derive = builder.get_other::<DeriveInfo>(DERIVE_INFO)?;
+
+        let mut device = Self::native(libpath, dev_type, dev_idx, derive)?;
+        device.open()?;
+
+        builder
+            .channel_configs()
+            .iter()
+            .try_for_each(|(&chl, cfg)| device.init_can_chl(chl, cfg))?;
+
+        Ok(device)
+    }
 
     #[inline]
     fn opened_channels(&self) -> Vec<Self::Channel> {
@@ -27,12 +57,12 @@ impl CanDevice for ZDriver {
         }
     }
 
-    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<(), CanError> {
+    async fn transmit(&self, msg: Self::Frame, _: Option<u32>) -> CanResult<()> {
         let channel = msg.channel();
-        let _ = match msg.can_type() {
-            CanType::Can => self.transmit_can(channel, vec![msg]),
-            CanType::CanFd => self.transmit_canfd(channel, vec![msg]),
-            CanType::CanXl => Err(CanError::NotSupportedError),
+        let _ = match msg.kind() {
+            CanKind::Classical => self.transmit_can(channel, vec![msg]),
+            CanKind::FD => self.transmit_canfd(channel, vec![msg]),
+            CanKind::XL => Err(CanError::NotSupportedError),
         }?;
 
         Ok(())
@@ -42,8 +72,8 @@ impl CanDevice for ZDriver {
         &self,
         channel: Self::Channel,
         timeout: Option<u32>,
-    ) -> CanResult<Vec<Self::Frame>, CanError> {
-        let mut results: Vec<CanMessage> = Vec::new();
+    ) -> CanResult<Vec<Self::Frame>> {
+        let mut results: Vec<ZCanFrame> = Vec::new();
 
         let count_can = self.get_can_num(channel, ZCanFrameType::CAN)?;
         if count_can > 0 {
@@ -67,39 +97,5 @@ impl CanDevice for ZDriver {
     #[inline]
     fn shutdown(&mut self) {
         self.close()
-    }
-}
-
-impl TryFrom<DeviceBuilder<u8>> for ZDriver {
-    type Error = CanError;
-
-    fn try_from(builder: DeviceBuilder<u8>) -> Result<Self, Self::Error> {
-        let libpath = builder
-            .get_other::<String>(LIBPATH)?
-            .ok_or(CanError::other_error(format!("`{}` not found", LIBPATH)))?;
-        let dev_type =
-            builder
-                .get_other::<ZCanDeviceType>(DEVICE_TYPE)?
-                .ok_or(CanError::other_error(format!(
-                    "`{}` not found",
-                    DEVICE_TYPE
-                )))?;
-        let dev_idx = builder
-            .get_other::<u32>(DEVICE_INDEX)?
-            .ok_or(CanError::other_error(format!(
-                "`{}` not found",
-                DEVICE_INDEX
-            )))?;
-        let derive = builder.get_other::<DeriveInfo>(DERIVE_INFO)?;
-
-        let mut device = Self::new(libpath, dev_type, dev_idx, derive)?;
-        device.open()?;
-
-        builder
-            .channel_configs()
-            .iter()
-            .try_for_each(|(&chl, cfg)| device.init_can_chl(chl, cfg))?;
-
-        Ok(device)
     }
 }

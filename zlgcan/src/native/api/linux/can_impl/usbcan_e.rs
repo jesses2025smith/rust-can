@@ -1,13 +1,13 @@
 use crate::{
     can::{
-        common::CanChlCfgContext, constants::BITRATE_CFG_FILENAME, CanMessage, ZCanChlCfg,
-        ZCanChlError, ZCanChlStatus, ZCanChlType, ZCanFrame, ZCanFrameInner, ZCanFrameType,
+        common::CanChlCfgContext, constants::BITRATE_CFG_FILENAME, ZCanChlCfg, ZCanChlError,
+        ZCanChlStatus, ZCanChlType, ZCanFrame, ZCanFrameInner, ZCanFrameType, ZCanFrameUnion,
     },
     constants,
     device::ZCanDeviceType,
     native::api::{USBCANEApi, ZCanApi, ZChannelContext},
 };
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 
 impl ZCanApi for USBCANEApi<'_> {
     fn init_can_chl(
@@ -15,7 +15,7 @@ impl ZCanApi for USBCANEApi<'_> {
         libpath: &str,
         context: &mut ZChannelContext,
         cfg: &ChannelConfig,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let dev_type = context.device.dev_type;
         let dev_hdl = context.device_handler()?;
         let channel = context.channel as u32;
@@ -65,7 +65,7 @@ impl ZCanApi for USBCANEApi<'_> {
         }
     }
 
-    fn reset_can_chl(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn reset_can_chl(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_ResetCAN)(context.channel_handler()?) } as u32 {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -75,7 +75,7 @@ impl ZCanApi for USBCANEApi<'_> {
         }
     }
 
-    fn read_can_chl_status(&self, context: &ZChannelContext) -> Result<ZCanChlStatus, CanError> {
+    fn read_can_chl_status(&self, context: &ZChannelContext) -> CanResult<ZCanChlStatus> {
         let mut status = ZCanChlStatus::default();
         match unsafe { (self.ZCAN_ReadChannelStatus)(context.channel_handler()?, &mut status) }
             as u32
@@ -88,7 +88,7 @@ impl ZCanApi for USBCANEApi<'_> {
         }
     }
 
-    fn read_can_chl_error(&self, context: &ZChannelContext) -> Result<ZCanChlError, CanError> {
+    fn read_can_chl_error(&self, context: &ZChannelContext) -> CanResult<ZCanChlError> {
         let mut info = ZCanChlError {
             v1: Default::default(),
         };
@@ -103,7 +103,7 @@ impl ZCanApi for USBCANEApi<'_> {
         }
     }
 
-    fn clear_can_buffer(&self, context: &ZChannelContext) -> Result<(), CanError> {
+    fn clear_can_buffer(&self, context: &ZChannelContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_ClearBuffer)(context.channel_handler()?) } as u32 {
             Self::STATUS_OK => Ok(()),
             code => Err(CanError::OperationError(format!(
@@ -113,11 +113,7 @@ impl ZCanApi for USBCANEApi<'_> {
         }
     }
 
-    fn get_can_num(
-        &self,
-        context: &ZChannelContext,
-        can_type: ZCanFrameType,
-    ) -> Result<u32, CanError> {
+    fn get_can_num(&self, context: &ZChannelContext, can_type: ZCanFrameType) -> CanResult<u32> {
         let ret = unsafe { (self.ZCAN_GetReceiveNum)(context.channel_handler()?, can_type as u8) };
         if ret > 0 {
             rsutil::trace!("ZLGCAN - get receive {} number: {}.", can_type, ret);
@@ -130,11 +126,11 @@ impl ZCanApi for USBCANEApi<'_> {
         context: &ZChannelContext,
         size: u32,
         timeout: u32,
-    ) -> Result<Vec<CanMessage>, CanError> {
+    ) -> CanResult<Vec<ZCanFrame>> {
         let mut frames = Vec::new();
         frames.resize(
             size as usize,
-            ZCanFrame {
+            ZCanFrameUnion {
                 can: ZCanFrameInner {
                     libother: Default::default(),
                 },
@@ -169,14 +165,10 @@ impl ZCanApi for USBCANEApi<'_> {
             .collect::<Vec<_>>())
     }
 
-    fn transmit_can(
-        &self,
-        context: &ZChannelContext,
-        frames: Vec<CanMessage>,
-    ) -> Result<u32, CanError> {
+    fn transmit_can(&self, context: &ZChannelContext, frames: Vec<ZCanFrame>) -> CanResult<u32> {
         let frames = frames
             .into_iter()
-            .map(|frame| ZCanFrame {
+            .map(|frame| ZCanFrameUnion {
                 can: ZCanFrameInner {
                     libother: frame.into(),
                 },

@@ -1,5 +1,5 @@
-use rs_can::{CanDevice, CanError, CanFrame, DeviceBuilder};
-use socketcan_rs::{CanMessage, SocketCan};
+use rs_can::{CanDevice, CanError, CanFrame, CanId, DeviceBuilder};
+use socketcan_rs::{SocketCan, SocketCanFrame};
 use std::time::Duration;
 use tokio::{signal::ctrl_c, time::sleep};
 
@@ -22,7 +22,8 @@ async fn main() -> anyhow::Result<(), CanError> {
     let send_task = tokio::spawn(async move {
         loop {
             let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
-            let mut message = CanMessage::new(0x1234, &data).unwrap();
+            let mut message =
+                SocketCanFrame::new_can(CanId::try_from(0x1234_u32).unwrap(), &data).unwrap();
             message.set_channel(iface_clone.clone());
             if let Err(e) = dev_clone1.transmit(message, None).await {
                 eprintln!("transmit device error {:?}", e);

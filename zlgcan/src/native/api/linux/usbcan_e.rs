@@ -1,5 +1,5 @@
 use dlopen2::symbor::{SymBorApi, Symbol};
-use rs_can::{CanError, ChannelConfig};
+use rs_can::{CanError, CanResult, ChannelConfig};
 use std::ffi::{c_uchar, c_uint, CString};
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
     driver::Handler,
     native::{
         api::{ZCanApi, ZChannelContext, ZDeviceApi, ZDeviceContext},
-        can::{ZCanChlCfg, ZCanChlError, ZCanChlMode, ZCanChlStatus, ZCanFrame},
+        can::{ZCanChlCfg, ZCanChlError, ZCanChlMode, ZCanChlStatus, ZCanFrameUnion},
         constants::{channel_bitrate, channel_work_mode},
         device::{IProperty, SetValueFunc, ZDeviceInfo},
     },
@@ -36,11 +36,11 @@ pub(crate) struct USBCANEApi<'a> {
     /// INT ZCAN_ReadChannelStatus(CHANNEL_HANDLE channel_handle, ZCAN_CHANNEL_STATUS* pCANStatus);
     pub(crate) ZCAN_ReadChannelStatus: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, status: *mut ZCanChlStatus) -> c_uint>,
     /// INT ZCAN_Transmit(CHANNEL_HANDLE channel_handle, ZCAN_Transmit_Data* pTransmit, UINT len);
-    pub(crate) ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, len: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Transmit: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrameUnion, len: c_uint) -> c_uint>,
     /// INT ZCAN_GetReceiveNum(CHANNEL_HANDLE channel_handle, BYTE type);
     pub(crate) ZCAN_GetReceiveNum: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, msg: c_uchar) -> c_uint>,
     /// INT ZCAN_Receive(CHANNEL_HANDLE channel_handle, ZCAN_Receive_Data* pReceive, UINT len, INT wait_time);
-    pub(crate) ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrame, size: c_uint, timeout: c_uint) -> c_uint>,
+    pub(crate) ZCAN_Receive: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFrameUnion, size: c_uint, timeout: c_uint) -> c_uint>,
     /// INT ZCAN_TransmitFD(CHANNEL_HANDLE channel_handle, ZCAN_TransmitFD_Data* pTransmit, UINT len);
     //ZCAN_TransmitFD: Symbol<'a, unsafe extern "C" fn(chl_hdl: c_uint, frames: *const ZCanFdFrame, len: c_uint) -> c_uint>,
     /// INT ZCAN_ReceiveFD(CHANNEL_HANDLE channel_handle, ZCAN_ReceiveFD_Data* pReceive, UINT len, INT wait_time);
@@ -52,7 +52,7 @@ pub(crate) struct USBCANEApi<'a> {
     pub(crate) ReleaseIProperty: Symbol<'a, unsafe extern "C" fn(p: *const IProperty) -> c_uint>,
 }
 
-#[allow(unused)]    // aarch64 unused
+#[allow(dead_code)] // aarch64 unused
 impl USBCANEApi<'_> {
     pub(crate) const INVALID_DEVICE_HANDLE: u32 = 0;
     pub(crate) const INVALID_CHANNEL_HANDLE: u32 = 0;
@@ -63,7 +63,7 @@ impl USBCANEApi<'_> {
         dev_hdl: &mut Handler,
         channel: u8,
         cfg: &ChannelConfig,
-    ) -> Result<(), CanError> {
+    ) -> CanResult<()> {
         let p = self.self_get_property(dev_hdl.device_context())?;
         let set_value_func = p.SetValue;
         let mut error = None;
@@ -98,7 +98,7 @@ impl USBCANEApi<'_> {
         channel: u8,
         set_value_func: SetValueFunc,
         cfg: &ChannelConfig,
-    ) -> Result<ZChannelContext, CanError> {
+    ) -> CanResult<ZChannelContext> {
         let mut context = ZChannelContext::new(dev_hdl.device_context().clone(), channel);
         self.init_can_chl(libpath, &mut context, cfg)?; // ZCAN_InitCAN]
                                                         // self.usbcan_4e_api.reset_can_chl(chl_hdl).unwrap_or_else(|e| rsutil::warn!("{}", e));
@@ -114,17 +114,12 @@ impl USBCANEApi<'_> {
         }
     }
 
-    fn set_channel(
-        &self,
-        channel: u8,
-        func: SetValueFunc,
-        cfg: &ChannelConfig,
-    ) -> Result<(), CanError> {
+    fn set_channel(&self, channel: u8, func: SetValueFunc, cfg: &ChannelConfig) -> CanResult<()> {
         unsafe {
             let func = func.ok_or(CanError::other_error("method not supported"))?;
             let cmd_path = CString::new(channel_bitrate(channel))
                 .map_err(|e| CanError::OtherError(e.to_string()))?;
-            let bitrate = CString::new(cfg.bitrate().to_string())
+            let bitrate = CString::new(cfg.nominal_bitrate.to_string())
                 .map_err(|e| CanError::OtherError(e.to_string()))?;
             match func(cmd_path.as_ptr(), bitrate.as_ptr()) as u32 {
                 Self::STATUS_OK => Ok(()),
@@ -152,10 +147,7 @@ impl USBCANEApi<'_> {
         }
     }
 
-    pub(crate) fn self_get_property(
-        &self,
-        context: &ZDeviceContext,
-    ) -> Result<IProperty, CanError> {
+    pub(crate) fn self_get_property(&self, context: &ZDeviceContext) -> CanResult<IProperty> {
         let ret = unsafe { (self.GetIProperty)(context.device_handler()?) };
         if ret.is_null() {
             Err(CanError::OperationError(format!(
