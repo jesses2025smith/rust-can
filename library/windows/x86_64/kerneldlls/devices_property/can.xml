@@ -82,6 +82,8 @@
 				<option type="int32" value="83" desc="PCIE-CANFD-1200U" />
 				<option type="int32" value="84" desc="MINI-PCIE-CANFD" />
 				<option type="int32" value="85" desc="USBCANFD-800H" />
+				<option type="int32" value="86" desc="BG002" />
+				<option type="int32" value="87" desc="BG004" />
 			</options>
 		</meta>
 		<PCI5121 stream="PCI5121" case="parent-value=1">
@@ -805,6 +807,23 @@
 				</meta>
 			</include_file>
 		</USBCANFD-800H>
-
+		<BG002 stream="BG002" case="parent-value=86">
+			<include_file>
+				<value>bg002.xml</value>
+				<meta>
+					<type>string</type>
+					<desc>BG002config file</desc>
+				</meta>
+			</include_file>
+		</BG002>
+		<BG004 stream="BG004" case="parent-value=87">
+			<include_file>
+				<value>bg004.xml</value>
+				<meta>
+					<type>string</type>
+					<desc>BG004 config file</desc>
+				</meta>
+			</include_file>
+		</BG004>
 	</DeviceType>
 </info>

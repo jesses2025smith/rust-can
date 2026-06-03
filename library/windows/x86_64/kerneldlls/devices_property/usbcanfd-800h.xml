@@ -319,7 +319,7 @@
 				</meta>
 			</filter_batch>
 			<set_bus_usage_enable flag="0x0024">
-				<value>1</value>
+				<value>0</value>
 				<meta>
 					<visible>true</visible>
 					<type>options.int32</type>
@@ -331,7 +331,7 @@
 				</meta>
 			</set_bus_usage_enable>
 			<set_bus_usage_period flag="0x0025">
-				<value>300</value>
+				<value>1000</value>
 				<meta>
 					<visible>$/info/channel/channel_0/set_bus_usage_enable==1</visible>
 					<type>uint32</type>
@@ -514,6 +514,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x002E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x002F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0030">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 			<set_tx_mode flag="0x002C">
 				<value>1</value>
 				<meta>
@@ -994,6 +1018,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x012E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x012F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0130">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 		</channel_1>
 		<channel_2 stream="channel_2" case="parent-value=2">
 			<protocol flag="0x0252" at_initcan="pre">
@@ -1450,6 +1498,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x022E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x022F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0230">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 		</channel_2>
 		<channel_3 stream="channel_3" case="parent-value=3">
 			<protocol flag="0x0352" at_initcan="pre">
@@ -1906,6 +1978,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x032E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x032F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0330">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 		</channel_3>
 		<channel_4 stream="channel_4" case="parent-value=4">
 			<protocol flag="0x0452" at_initcan="pre">
@@ -2362,6 +2458,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x042E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x042F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0430">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 		</channel_4>
 		<channel_5 stream="channel_5" case="parent-value=5">
 			<protocol flag="0x0552" at_initcan="pre">
@@ -2818,6 +2938,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x052E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x052F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0530">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 		</channel_5>
 		<channel_6 stream="channel_6" case="parent-value=6">
 			<protocol flag="0x0652" at_initcan="pre">
@@ -3274,6 +3418,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x062E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x062F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0630">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 		</channel_6>
 		<channel_7 stream="channel_7" case="parent-value=7">
 			<protocol flag="0x0752" at_initcan="pre">
@@ -3730,6 +3898,30 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x072E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x072F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
+			<script_status flag="0x0730">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>获取脚本状态</desc>
+				</meta>
+			</script_status>
 		</channel_7>
 	</channel>
 </info>

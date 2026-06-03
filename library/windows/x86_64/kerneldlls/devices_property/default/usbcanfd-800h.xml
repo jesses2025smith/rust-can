@@ -319,7 +319,7 @@
 				</meta>
 			</filter_batch>
 			<set_bus_usage_enable flag="0x0024">
-				<value>1</value>
+				<value>0</value>
 				<meta>
 					<visible>true</visible>
 					<type>options.int32</type>
@@ -331,7 +331,7 @@
 				</meta>
 			</set_bus_usage_enable>
 			<set_bus_usage_period flag="0x0025">
-				<value>300</value>
+				<value>1000</value>
 				<meta>
 					<visible>$/info/channel/channel_0/set_bus_usage_enable==1</visible>
 					<type>uint32</type>
@@ -514,6 +514,22 @@
 					</options>
 				</meta>
 			</get_device_lin_uds_support>
+			<script_load flag="0x002E">
+				<value>.</value>
+				<meta>
+					<visible>false</visible>
+					<type>string</type>
+					<desc>下载脚本</desc>
+				</meta>
+			</script_load>
+			<script_en flag="0x002F">
+				<value>1</value>
+				<meta>
+					<visible>false</visible>
+					<type>options.int32</type>
+					<desc>脚本使能</desc>
+				</meta>
+			</script_en>
 			<set_tx_mode flag="0x002C">
 				<value>1</value>
 				<meta>

@@ -72,6 +72,7 @@
 #define ZCAN_PCIE_CANFD_100U_EX   60
 #define ZCAN_PCIE_CANFD_400U_EX   61
 #define ZCAN_PCIE_CANFD_200U_MINI 62
+#define ZCAN_PCIE_CANFD_200U_EX   63
 #define ZCAN_PCIE_CANFD_200U_M2   63
 #define ZCAN_CANFDDTU_400_TCP     64
 #define ZCAN_CANFDDTU_400_UDP     65
@@ -90,6 +91,13 @@
 #define ZCAN_ZPSCANFD_TCP         78
 #define ZCAN_ZPSCANFD_USB         79
 #define ZCAN_CANFDBRIDGE_PLUS     80
+#define ZCAN_CANFDDTU_300U        81
+#define ZCAN_PCIE_CANFD_800U      82
+#define ZCAN_PCIE_CANFD_1200U     83
+#define ZCAN_MINI_PCIE_CANFD      84
+#define ZCAN_USBCANFD_800H        85
+#define ZCAN_BG002                86
+#define ZCAN_BG004                87
 
 #define ZCAN_OFFLINE_DEVICE 98
 #define ZCAN_VIRTUAL_DEVICE 99
@@ -130,8 +138,8 @@ typedef UINT ZCAN_RET_STATUS;
 #define STATUS_BUFFER_TOO_SMALL 5
 
 typedef UINT ZCAN_LAST_ERROR_STATUS;
-//#define STATUS_NO_ERR                       0
-//#define STATUS_NO_ERR                       1
+// #define STATUS_NO_ERR                       0
+// #define STATUS_NO_ERR                       1
 
 typedef UINT ZCAN_UDS_DATA_DEF;
 #define DEF_CAN_UDS_DATA  1  // CAN/CANFD UDS数据
@@ -206,7 +214,7 @@ union unionCANFDFilterRulePresent {
 
 // 单条过滤规则，
 struct CANFD_FILTER_RULE {
-    union unionCANFDFilterRulePresent presentFlag;  // 标识对应的数据是否存在
+    unionCANFDFilterRulePresent presentFlag;  // 标识对应的数据是否存在
     int                         nErr;  // 是否错误报文，此条件一定存在，表示此条过滤是正常帧还是错误帧，0:不过滤错误帧
                                        // 1:过滤错误帧
     int  nChnl;                        // 通道
@@ -231,7 +239,7 @@ typedef UINT enumCANFDFilterBlackWhiteList;
 struct CANFD_FILTER_CFG {
     int                           bEnable;
     enumCANFDFilterBlackWhiteList enBlackWhiteList;
-    struct CANFD_FILTER_RULE             vecFilters[CANFD_FILTER_COUNT_MAX];
+    CANFD_FILTER_RULE             vecFilters[CANFD_FILTER_COUNT_MAX];
 };
 
 // 目前只给滤波使用、后续可集成其他模块
@@ -240,7 +248,7 @@ typedef struct tagZCAN_DYNAMIC_CONFIG {
     UINT                  isPersist;  // 是否是持久配置（即设备掉电保存配置）、TRUE-持久配置
                                       // FALSE-动态配置
     union {
-        struct CANFD_FILTER_CFG
+        CANFD_FILTER_CFG
         filterCfg;                 // dynamicConfigDataType = DYNAMIC_CONFIG_FILTER时有效
         BYTE reserved[10 * 1024];  // 保留
     } data;
@@ -261,6 +269,28 @@ typedef struct tagZCAN_DEVICE_INFO {
     UCHAR  str_hw_Type[40];
     USHORT reserved[4];
 } ZCAN_DEVICE_INFO;
+
+typedef struct tagZCAN_VERSION {
+    BYTE major_version;
+    BYTE minor_version;
+    BYTE patch_version;
+    BYTE reserved;
+} ZCAN_VERSION;
+
+// device_info_version: V1.0.0
+typedef struct tagZCAN_DEVICE_INFO_EX {
+    ZCAN_VERSION hardware_version;  // 硬件版本
+    ZCAN_VERSION firmware_version;  // 固件版本
+    ZCAN_VERSION driver_version;    // 驱动版本
+    ZCAN_VERSION library_version;   // 动态库版本
+    UCHAR        device_name[128];
+    UCHAR        hardware_type[40];
+    UCHAR        serial_number[20];
+    BYTE         can_channel_number;
+    BYTE         lin_channel_number;
+    BYTE         reserved[46];
+    ZCAN_VERSION device_info_version;
+} ZCAN_DEVICE_INFO_EX;
 
 typedef struct tagZCAN_CHANNEL_INIT_CONFIG {
     UINT can_type;  // type:TYPE_CAN
@@ -286,7 +316,7 @@ typedef struct tagZCAN_CHANNEL_INIT_CONFIG {
             USHORT pad;
             UINT   reserved;
         } canfd;
-    } config;
+    };
 } ZCAN_CHANNEL_INIT_CONFIG;
 
 typedef struct tagZCAN_CHANNEL_ERR_INFO {
@@ -585,7 +615,7 @@ typedef struct tagZCANLINErrData {
             USHORT errStage  : 4;  // 错误阶段
             USHORT errReason : 4;  // 错误原因
             USHORT reserved  : 8;  // 保留
-        } flag;
+        };
         USHORT unionErrData;
     } errData;
     BYTE dir;           // 传输方向
@@ -597,11 +627,22 @@ typedef BYTE ZCAN_LIN_EVENT_TYPE;
 #define ZCAN_LIN_WAKE_UP            1
 #define ZCAN_LIN_ENTERED_SLEEP_MODE 2
 #define ZCAN_LIN_EXITED_SLEEP_MODE  3
+#define ZCAN_LIN_SWITCH_SCHED       4
 
 typedef struct tagZCANLINEventData {
     UINT64              timeStamp;  // 时间戳，单位微秒(us)
     ZCAN_LIN_EVENT_TYPE type;
-    BYTE                reserved[7];
+    union {
+        struct {
+            BYTE prior_sched_idx;       // 上一个调度表索引
+            BYTE prior_sched_item_idx;  // 上一个调度表项索引
+            BYTE next_sched_idx;        // 下一个调度表索引
+            BYTE next_sched_item_idx;   // 下一个调度表项索引
+            BYTE first_after_wake_up;   // 是否为唤醒后首次切换
+            BYTE switch_sched_res[2];
+        } switch_sched;
+        BYTE reserved[7];
+    };
 } ZCANLINEventData;
 
 // LIN扩展数据
@@ -670,9 +711,9 @@ enum eZLINChkSumMode {
 typedef struct _VCI_LIN_INIT_CONFIG {
     BYTE linMode;     // 是否作为主机，0-从机，1-主机
     BYTE chkSumMode;  // 校验方式，1-经典校验 2-增强校验 3-自动(对应eZLINChkSumMode的模式)
-    BYTE maxLength;  // 最大数据长度，8~64
-    BYTE reserved;   // 保留
-    UINT linBaud;    // 波特率，取值1000~20000
+    BYTE maxLength;   // 最大数据长度，8~64
+    BYTE reserved;    // 保留
+    UINT linBaud;     // 波特率，取值1000~20000
 } ZCAN_LIN_INIT_CONFIG, *PZCAN_LIN_INIT_CONFIG;
 
 typedef struct _VCI_LIN_PUBLISH_CFG {
@@ -714,12 +755,19 @@ typedef BYTE ZCAN_UDS_FRAME_TYPE;
 #define ZCAN_UDS_FRAME_CANFD     1  // CANFD帧
 #define ZCAN_UDS_FRAME_CANFD_BRS 2  // CANFD加速帧
 
+// 数据长度填充模式
+typedef BYTE ZCAN_UDS_FILL_MODE;
+#define ZCAN_UDS_FILL_MODE_SHORT 0  // 小于8字节填充至8字节，大于8字节时按DLC就近填充
+#define ZCAN_UDS_FILL_MODE_NONE  1  // 不填充
+#define ZCAN_UDS_FILL_MODE_MAX   2  // 填充至最大数据长度(不建议)
+
 // CAN UDS请求数据
 typedef struct _ZCAN_UDS_REQUEST {
     UINT                req_id;             // 请求事务ID，范围0~65535，本次请求的唯一标识
     BYTE                channel;            // 设备通道索引 0~255
     ZCAN_UDS_FRAME_TYPE frame_type;         // 帧类型
-    BYTE                reserved0[2];       // 保留
+    BYTE                frame_echo;         // 发送回显，0-不回显，1-回显
+    BYTE                reserved0[1];       // 保留
     UINT                src_addr;           // 请求地址
     UINT                dst_addr;           // 响应地址
     BYTE                suppress_response;  // 1:抑制响应
@@ -740,16 +788,17 @@ typedef struct _ZCAN_UDS_REQUEST {
         BYTE block_size;    // 流控帧的块大小
         BYTE fill_byte;     // 无效字节的填充数据
         BYTE ext_frame;     // 0:标准帧 1:扩展帧
-        BYTE is_modify_ecu_st_min;  // 是否忽略ECU返回流控的STmin，强制使用本程序设置的
-                                    // remote_st_min
-        BYTE remote_st_min;         // 发送多帧时用，is_ignore_ecu_st_min = 1
-                                    // 时有效，0x00-0x7F(0ms~127ms)，0xF1-0xF9(100us~900us)
-        UINT fc_timeout;            // 接收流控超时时间(ms)，如发送首帧后需要等待回应流控帧
-        BYTE reserved0[4];          // 保留
-    } trans_param;                  // 传输层参数
-    BYTE *data;                     // 数据数组(不包含SID)
-    UINT  data_len;                 // 数据数组的长度
-    UINT  reserved2;                // 保留
+        BYTE is_modify_ecu_st_min;        // 是否忽略ECU返回流控的STmin，强制使用本程序设置的
+                                          // remote_st_min
+        BYTE remote_st_min;               // 发送多帧时用，is_ignore_ecu_st_min = 1
+                                          // 时有效，0x00-0x7F(0ms~127ms)，0xF1-0xF9(100us~900us)
+        UINT               fc_timeout;    // 接收流控超时时间(ms)，如发送首帧后需要等待回应流控帧
+        ZCAN_UDS_FILL_MODE fill_mode;     // 数据长度填充模式
+        BYTE               reserved0[3];  // 保留
+    } trans_param;                        // 传输层参数
+    BYTE *data;                           // 数据数组(不包含SID)
+    UINT  data_len;                       // 数据数组的长度
+    UINT  reserved2;                      // 保留
 } ZCAN_UDS_REQUEST;
 
 // LIN UDS请求数据
@@ -869,7 +918,7 @@ typedef struct _ZCAN_UDS_RESPONSE {
             BYTE error_code;  // 错误码
         } negative;
         BYTE raw[8];
-    } response;
+    };
 } ZCAN_UDS_RESPONSE;
 
 // UDS控制类型
@@ -924,6 +973,129 @@ typedef struct tagZCANUdsRequestDataObj {
     BYTE reserved[32];                      // 保留位
 } ZCANUdsRequestDataObj;
 
+typedef struct tagZCANUdsAddrInfoObj {
+    union {
+        struct {
+            BYTE is_use_func;  // 是否使用功能寻址
+            UINT req_addr;     // 请求地址
+            UINT resp_addr;    // 响应地址
+            UINT func_addr;    // 功能地址
+            BYTE addr_mode;    // 寻址模式 0：normal， 1：extend； 2：mixed
+            UINT ecu_addr;     // ECU地址
+            UINT tester_addr;  // 测试仪地址
+            UINT extend_addr;  // 拓展地址
+            BYTE ext_frame;    // 0:标准帧 1:扩展帧
+        } can_addr;
+        struct {
+            BYTE Nad;
+        } lin_addr;
+        struct {
+            UINT targetAddress;       // 目标逻辑地址
+            UINT sourceAddress;       // 源逻辑地址
+            char serverAddress[128];  // DoIP实体的IP地址
+        } doip_addr;
+    };
+} ZCANUdsAddrInfoObj;
+
+typedef struct tagZCANUdsTransParam {
+    union {
+        struct {
+            ZCAN_UDS_TRANS_VER version;       // 传输协议版本，VERSION_0，VERSION_1
+            BYTE               max_data_len;  // 单帧最大数据长度，can:8，canfd:64
+            BYTE               fill_byte;     // 无效字节的填充数据
+            ZCAN_UDS_FILL_MODE fill_mode;     // 数据长度填充模式
+        } on_can;
+        struct {
+            BYTE len;        // 帧长度，取值范围2~8
+            BYTE fill_byte;  // 无效字节的填充数据
+        } on_lin;
+    };
+} ZCANUdsTransParam;
+
+// UDS会话保持数据结构，支持CAN/LIN等UDS不同类型数据
+typedef struct tagZCANUdsTesterPresentObj {
+    ZCAN_UDS_DATA_DEF  dataType;        // 数据类型
+    ZCANUdsAddrInfoObj address;         // 地址信息
+    ZCANUdsTransParam  trans_param;     // 传输层参数
+    BYTE               channel;         // 设备通道索引 0~255
+    BYTE               enable;          // 使能开关
+    BYTE               only_when_idle;  // 是否仅在空闲时请求
+    UINT               interval;        // 请求间隔，单位ms
+    BYTE               reserved[32];    // 保留位
+} ZCANUdsTesterPresentObj;
+
+// LIN调度表相关
+#define ZCAN_LIN_CHN_SCHED_MAX_NUM  128  // 通道支持添加最大调度表个数
+#define ZCAN_LIN_SCHED_ITEM_MAX_NUM 64   // 调度表项最大数
+
+typedef BYTE ZCAN_LIN_SCHED_STATUS_CODE;
+#define ZCAN_LIN_SCHED_STATUS_IDLE 0  // 空闲
+#define ZCAN_LIN_SCHED_STATUS_RUN  1  // 正在运行
+#define ZCAN_LIN_SCHED_STATUS_ERR  2  // 运行出错
+
+// LIN调度表状态
+typedef struct _ZCAN_LIN_SCHED_STATUS {
+    ZCAN_LIN_SCHED_STATUS_CODE status;     // 通道调度表状态码
+    BYTE                       sched_cnt;  // 通道调度表个数
+    BYTE                       res[126];
+    UINT                       run_cnt[ZCAN_LIN_CHN_SCHED_MAX_NUM];  // 通道中每个调度表运行次数
+} ZCAN_LIN_SCHED_STATUS;
+
+// LIN帧类型
+typedef BYTE ZCAN_LIN_FRAME_TYPE;
+#define ZCAN_LIN_FRAME_UNCONDITIONAL 0  // 无条件帧
+#define ZCAN_LIN_FRAME_EVENT         1  // 事件触发帧
+#define ZCAN_LIN_FRAME_SPORADIC      2  // 偶发帧
+#define ZCAN_LIN_FRAME_MST_REQ       3  // 诊断主机请求帧
+#define ZCAN_LIN_FRAME_SLV_RESP      4  // 诊断从机应答帧
+#define ZCAN_LIN_FRAME_RESERVED      5  // 保留帧
+
+#define LIN_SCHED_ALL_ITEMS ((UINT)(-1))
+
+typedef struct _ZCAN_LIN_SCHED_ITEM {
+    ZCAN_LIN_FRAME_TYPE type;  // 帧类型
+    union {
+        struct {
+            BYTE disable   : 1;  // 表项是否失能(初始使能)
+            BYTE have_data : 1;  // 诊断主机请求帧是否包含数据区
+            BYTE res       : 6;  // 保留
+        };
+        BYTE flag;
+    };
+    BYTE reserved1[2];           // 保留
+    UINT slot;                   // 帧时隙(单位ms)
+    UINT resolve_sched_tbl_idx;  // 冲突调度表索引
+
+    union {
+        BYTE id;  // 无条件帧、诊断主机请求帧、诊断从机应答帧、保留帧的id
+        struct {
+            BYTE spor_related_id[16];  // 偶发帧关联的id列表，索引0为最高优先级，依次递减
+            BYTE spor_count;           // 偶发帧的关联的id个数
+        } sporadic_id;
+        struct {
+            BYTE event_id;              // 事件触发帧的id
+            BYTE event_related_id[16];  // 事件触发帧关联的无条件帧id列表
+            BYTE event_count;           // 事件触发帧关联的无条件帧的id个数
+        } event_id;
+    } ids;
+    BYTE reserved2[2];  // 保留
+    BYTE data[8];       // 数据区
+} ZCAN_LIN_SCHED_ITEM;
+
+typedef struct _ZCAN_LIN_SCHED_TABLE {
+    UINT run_cnt;  // 调度表运行次数
+    union {
+        UINT flag;
+        struct {
+            UINT disable     : 1;  // 调度表是否失能（初始使能）
+            UINT is_conflict : 1;  // 调度表是否为冲突调度表
+            UINT res         : 30;
+        };
+    };
+    ZCAN_LIN_SCHED_ITEM items[ZCAN_LIN_SCHED_ITEM_MAX_NUM];  // 调度表中帧信息数组
+    UINT                item_num;                            // 调度表中帧的个数
+} ZCAN_LIN_SCHED_TABLE;
+
 #pragma pack(pop)
 
 #ifdef __cplusplus
@@ -944,8 +1116,11 @@ extern "C" {
 
 #define INVALID_DEVICE_HANDLE 0
 DEVICE_HANDLE FUNC_CALL ZCAN_OpenDevice(UINT device_type, UINT device_index, UINT reserved);
+// 基于自定义序列号打开
+DEVICE_HANDLE FUNC_CALL ZCAN_OpenDeviceByName(UINT DeviceType, const char *name);
 UINT FUNC_CALL          ZCAN_CloseDevice(DEVICE_HANDLE device_handle);
 UINT FUNC_CALL          ZCAN_GetDeviceInf(DEVICE_HANDLE device_handle, ZCAN_DEVICE_INFO *pInfo);
+UINT FUNC_CALL          ZCAN_GetDeviceInfoEx(DEVICE_HANDLE device_handle, ZCAN_DEVICE_INFO_EX *pInfo);
 
 UINT FUNC_CALL ZCAN_IsDeviceOnLine(DEVICE_HANDLE device_handle);
 
@@ -1049,9 +1224,62 @@ ZCAN_RET_STATUS FUNC_CALL ZCAN_UDS_RequestEX(DEVICE_HANDLE device_handle, const 
 ZCAN_RET_STATUS FUNC_CALL ZCAN_UDS_ControlEX(DEVICE_HANDLE device_handle, ZCAN_UDS_DATA_DEF dataType,
                                              const ZCAN_UDS_CTRL_REQ *ctrl, ZCAN_UDS_CTRL_RESP *resp);
 
+/**
+ * @brief UDS会话保持设置(总)
+ * @param[in] device_handle 设备句柄
+ * @param[in] param 参数信息
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_UDS_SetTesterPresent(DEVICE_HANDLE device_handle, const ZCANUdsTesterPresentObj *param);
+
 /*已弃用*/
 UINT FUNC_CALL ZCAN_SetLINSlaveMsg(CHANNEL_HANDLE channel_handle, PZCAN_LIN_MSG pSend, UINT nMsgCount);
 UINT FUNC_CALL ZCAN_ClearLINSlaveMsg(CHANNEL_HANDLE channel_handle, BYTE *pLINID, UINT nIDCount);
+
+/**
+ * @brief 设置LIN通道调度表
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_tbl 调度表数组指针
+ * @param[in] sched_tbl_num 调度表数组个数
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_SetLINSchedule(CHANNEL_HANDLE channel_handle, const ZCAN_LIN_SCHED_TABLE *sched_tbl,
+                                              UINT sched_tbl_num);
+
+/**
+ * @brief 设置调度表表项使能状态
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_tbl_idx 调度表索引
+ * @param[in] item_idx 调度表表项索引, LIN_SCHED_ALL_ITEMS表示所有表项
+ * @param[in] enabled 表项使能，0：失能； 1：使能
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_SetLINScheduleItemEnabled(CHANNEL_HANDLE channel_handle, UINT sched_tbl_idx,
+                                                         UINT item_idx, UINT enabled);
+
+/**
+ * @brief 获取LIN调度表状态信息
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_handle 调度表句柄
+ * @param[out] status 调度表状态信息
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_GetLINScheduleStatus(CHANNEL_HANDLE channel_handle, ZCAN_LIN_SCHED_STATUS *status);
+
+/**
+ * @brief 启动LIN通道调度表
+ * @param[in] channel_handle 通道句柄
+ * @param[in] sched_tbl_idx 可以指定从哪个调度表开始运行
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_StartLINSchedule(CHANNEL_HANDLE channel_handle, UINT sched_tbl_idx);
+
+/**
+ * @brief 停止LIN通道调度表
+ * @param[in] channel_handle 通道句柄
+ * @return 执行结果状态
+ */
+ZCAN_RET_STATUS FUNC_CALL ZCAN_StopLINSchedule(CHANNEL_HANDLE channel_handle);
 
 #ifdef __cplusplus
 }

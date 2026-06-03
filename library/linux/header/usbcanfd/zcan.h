@@ -9,8 +9,22 @@
 #define ZCAN_API
 #define INVALID_HANDLE_VALUE  ((HANDLE)(-1))
 
+#define CMD_CAN_FILTER      0x14    // 滤波
+#define CMD_CAN_TTX         0x16    // 定时发送
+#define CMD_CAN_TTX_CTL     0x17    // 使能定时发送
+#define CMD_CAN_TRES        0x18    // CAN终端电阻
+
 #define ZCAN_CMD_SET_CHNL_RECV_MERGE 0x32    /**< 设置合并接收 0:不合并接收;1:合并接收*/
 #define ZCAN_CMD_GET_CHNL_RECV_MERGE 0x33    /**< 获取是否开启合并接收 0:不合并接收;1:合并接收*/
+
+#define CMD_SET_SN          0x42    // 获取SN号
+#define CMD_GET_SN          0x43    // 设置SN号
+#define CMD_CAN_TX_TIMEOUT  0x44    // 发送超时
+
+#define ZCAN_CMD_GET_SEND_QUEUE_SIZE    0x100   // 获取队列大小，uint32_t
+#define ZCAN_CMD_GET_SEND_QUEUE_SPACE   0x101   // 获取队列剩余空间, uint32_t
+#define ZCAN_CMD_SET_SEND_QUEUE_CLR     0x102   // 清空发送队列,1：清空 
+#define ZCAN_CMD_SET_SEND_QUEUE_EN      0x103   // 开启发送队列,1：使能 
 
 typedef unsigned char U8;
 typedef unsigned short U16;
@@ -43,6 +57,11 @@ typedef struct {
     U32 eid; /**< end-id */
 } ZCAN_FILTER;
 
+typedef struct {
+    U32 size;
+    ZCAN_FILTER table[64];
+} ZCAN_FILTER_TABLE;
+
 /** controller initialization */
 typedef struct {
     U32 clk; /**< clock(Hz) */
@@ -72,7 +91,11 @@ typedef struct {
     U32 err : 1; /**< error flag */
     U32 brs : 1; /**< bit-rate switch */
     U32 est : 1; /**< error state */
-    U32 pad : 19;
+    U32 tx  : 1; /**< received valid, tx frame */
+    U32 echo : 1; /**< tx valid, echo frame */
+    U32 qsend_100us:1; /**< queue send delay unit, 1-100us, 0-ms */
+    U32 qsend:1; /**< send valid, queue send frame */
+    U32 pad : 15;
 } ZCAN_MSG_INF;
 
 /** CAN message header */
@@ -80,7 +103,7 @@ typedef struct {
     U32 ts; /**< timestamp */
     U32 id; /**< CAN-ID */
     ZCAN_MSG_INF inf; /**< @see ZCAN_MSG_INF */
-    U16 pad;
+    U16 pad; /**< send queue delay */
     U8 chn; /**< channel */
     U8 len; /**< data length */
 } ZCAN_MSG_HDR;
@@ -103,6 +126,20 @@ typedef struct {
     U8 dat[8];
 } ZCAN_ERR_MSG;
 
+// 定时发送结构体
+typedef struct {
+    U32 interval;       // 定时发送周期，单位 100us
+    U16 repeat;         // 发送次数，0等于循环发
+    U8 index;           // 定时发送列表的帧索引号，也就是第几条定时发送报文
+    U8 flags;           // 0-此帧禁用定时发送，1-此帧使能定时发送
+    ZCAN_FD_MSG msg;    // CANFD帧结构体
+} ZCAN_TTX;
+
+typedef struct {
+    U32 size;           // 实际生效的数组的长度（用来控制实际生效多少条定时发送帧结构体）
+    ZCAN_TTX table[8];  // 最大设置8条
+} ZCAN_TTX_CFG;
+
 /** device info */
 typedef struct {
     U16 hwv; /**< hardware version */
@@ -113,7 +150,7 @@ typedef struct {
     U8 chn; /**< channels */
     U8 sn[20]; /**< serial number */
     U8 id[40]; /**< card id */
-    U16 pad[4];
+    U16 pad[4]; 
 } ZCAN_DEV_INF;
 
 /** controller status */
@@ -263,6 +300,11 @@ typedef U8 ZCAN_UDS_FRAME_TYPE;
 #define ZCAN_UDS_FRAME_CANFD        1       // CANFD帧
 #define ZCAN_UDS_FRAME_CANFD_BRS    2       // CANFD加速帧
 
+// UDS填充模式
+#define FILL_MODE_SHORT    0    // 小于8字节填充至8字节，大于8字节时按DLC就近填充
+#define FILL_MODE_NONE     1    // 不填充
+#define FILL_MODE_MAX      2    // 填充至最大数据长度 (不建议)
+
 // CAN UDS请求数据
 typedef struct _ZCAN_UDS_REQUEST
 {
@@ -293,7 +335,8 @@ typedef struct _ZCAN_UDS_REQUEST
         U8 is_modify_ecu_st_min;          // 是否忽略ECU返回流控的STmin，强制使用本程序设置的 remote_st_min
         U8 remote_st_min;                 // 发送多帧时用, is_ignore_ecu_st_min = 1 时有效, 0x00-0x7F(0ms~127ms), 0xF1-0xF9(100us~900us)
         U32 fc_timeout;                    // 接收流控超时时间(ms), 如发送首帧后需要等待回应流控帧
-        U8 reserved0[4];                  // 保留
+        U8 fill_mode;                     // 数据长度填充模式, FILL_MODE_SHORT, FILL_MODE_NONE, FILL_MODE_MAX
+        U8 reserved0[3];                  // 保留
     } trans_param;                          // 传输层参数
     U8 *data;                             // 数据数组(不包含SID)
     U32 data_len;                          // 数据数组的长度
@@ -362,6 +405,7 @@ typedef struct _ZCAN_UDS_CTRL_RESP
 //lin enbd
 #pragma pack(pop)
 
+// 
 EXTERN_C U32 ZCAN_API VCI_OpenDevice(U32 Type, U32 Card, U32 Reserved);
 EXTERN_C U32 ZCAN_API VCI_CloseDevice(U32 Type, U32 Card);
 EXTERN_C U32 ZCAN_API VCI_InitCAN(U32 Type, U32 Card, U32 Port, ZCAN_INIT *pInit);
@@ -395,5 +439,6 @@ EXTERN_C U32 VCI_SetLINPublish(U32 Type, U32 Card, U32 LinChn, PZCAN_LIN_PUBLISH
 EXTERN_C U32 VCI_TransmitData(unsigned Type, unsigned Card, unsigned Port, ZCANDataObj *pData, unsigned Count);
 EXTERN_C U32 VCI_ReceiveData(unsigned Type, unsigned Card, unsigned Port, ZCANDataObj *pData, unsigned Count, unsigned Time);
 
+// UDS
 EXTERN_C U32 VCI_UDS_Request(unsigned Type, unsigned Card, const ZCAN_UDS_REQUEST *req, ZCAN_UDS_RESPONSE *resp, U8 *dataBuf, U32 dataBufSize);
 EXTERN_C U32 VCI_UDS_Control(unsigned Type, unsigned Card, const ZCAN_UDS_CTRL_REQ *ctrl, ZCAN_UDS_CTRL_RESP *resp);
