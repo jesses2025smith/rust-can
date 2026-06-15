@@ -27,7 +27,7 @@ derive-getters = "0.5"
 futures = "0.3"
 dlopen2 = "0.8"
 log = "0.4"
-pyo3 = "0.28"
+pyo3 = "0.29"
 rand = "0.10"
 rs-can = { path = "rs-can", version = "0.4.0" }
 rsutil = "0.1"
