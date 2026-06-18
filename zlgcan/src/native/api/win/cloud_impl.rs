@@ -80,6 +80,7 @@ impl ZCloudApi for WinApi<'_> {
         } else if ret > 0 {
             rsutil::trace!("ZLGCAN - receive GPS frame: {}", ret);
         }
+        frames.truncate(ret as usize);
         Ok(frames)
     }
 }

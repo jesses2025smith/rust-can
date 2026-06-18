@@ -14,7 +14,7 @@ impl ZLinApi for WinApi<'_> {
                     "`ZCAN_InitLIN` ret = {}",
                     Self::INVALID_CHANNEL_HANDLE
                 ))),
-                handler => match (self.ZCAN_StartLIN)(dev_hdl) {
+                handler => match (self.ZCAN_StartLIN)(handler) {
                     Self::STATUS_OK => {
                         context.chl_hdl = Some(handler);
                         Ok(())
@@ -69,6 +69,7 @@ impl ZLinApi for WinApi<'_> {
         } else if ret > 0 {
             rsutil::trace!("ZLGCAN - receive LIN frame: {}", ret);
         }
+        frames.truncate(ret as usize);
         Ok(frames)
     }
     fn transmit_lin(&self, context: &ZChannelContext, frames: Vec<ZLinFrame>) -> CanResult<u32> {

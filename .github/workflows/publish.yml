@@ -45,15 +45,19 @@ jobs:
       - name: Publish Linux-compatible crates
         run: |
           set -e
-          CRATES=(rs-can socketcan zlgcan)
+          CRATES=(rs-can socketcan-rs zlgcan)
 
           for CRATE in "${CRATES[@]}"; do
             echo "Checking $CRATE version..."
             VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r \
               ".packages[] | select(.name==\"$CRATE\") | .version")
+            if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+              echo "Could not resolve package version for $CRATE"
+              exit 1
+            fi
             echo "Detected $CRATE version: $VERSION"
             EXISTS=$(curl -s https://crates.io/api/v1/crates/${CRATE} | jq -r \
-              ".versions[] | select(.num==\"$VERSION\") | .num" || true)
+              '.versions[]? | select(.num=="'"$VERSION"'") | .num' || true)
             
             if [ "$EXISTS" == "$VERSION" ]; then
               echo "$CRATE version $VERSION is already published. Skipping."
@@ -81,9 +85,13 @@ jobs:
           echo "Checking $CRATE version..."
           VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r \
             ".packages[] | select(.name==\"$CRATE\") | .version")
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "Could not resolve package version for $CRATE"
+            exit 1
+          fi
           echo "Detected $CRATE version: $VERSION"
           EXISTS=$(curl -s https://crates.io/api/v1/crates/${CRATE} | jq -r \
-            ".versions[] | select(.num==\"$VERSION\") | .num" || true)
+            '.versions[]? | select(.num=="'"$VERSION"'") | .num' || true)
 
           if [ "$EXISTS" == "$VERSION" ]; then
             echo "$CRATE version $VERSION is already published. Skipping."
