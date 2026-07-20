@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "A Nican driver."
+description = "Unify CAN drivers."
 homepage = "https://github.com/jesses2025smith/rust-can/tree/master/rs-can"
 keywords = [
     "can",
