@@ -10,9 +10,9 @@ use std::ffi::{c_char, c_void, CString};
 impl ZDeviceApi for WinApi<'_> {
     fn open(&self, context: &mut ZDeviceContext) -> CanResult<()> {
         match unsafe { (self.ZCAN_OpenDevice)(context.dev_type as u32, context.dev_idx, 0) } {
-            Self::INVALID_DEVICE_HANDLE => Err(CanError::OperationError(format!(
+            v if v == Self::INVALID_DEVICE_HANDLE => Err(CanError::OperationError(format!(
                 "`ZCAN_OpenDevice` ret = {}",
-                Self::INVALID_DEVICE_HANDLE
+                v
             ))),
             v => {
                 context.dev_hdl = Some(v);

@@ -16,11 +16,19 @@ use crate::native::{
 use rs_can::{CanError, CanResult, ChannelConfig};
 use std::ffi::{c_char, c_void};
 
+/// Platform-specific device/channel handle type.
+/// On Windows x64, DEVICE_HANDLE and CHANNEL_HANDLE are pointer-sized (64-bit).
+/// On Linux, ZLG driver handles are 32-bit integers.
+#[cfg(target_os = "windows")]
+pub(crate) type ZCanHdl = usize;
+#[cfg(target_os = "linux")]
+pub(crate) type ZCanHdl = u32;
+
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct ZDeviceContext {
     pub(crate) dev_type: ZCanDeviceType,
     pub(crate) dev_idx: u32,
-    pub(crate) dev_hdl: Option<u32>,
+    pub(crate) dev_hdl: Option<ZCanHdl>,
     #[allow(unused)]
     pub(crate) is_derive: bool,
 }
@@ -35,7 +43,7 @@ impl ZDeviceContext {
         }
     }
     #[inline(always)]
-    pub fn device_handler(&self) -> CanResult<u32> {
+    pub fn device_handler(&self) -> CanResult<ZCanHdl> {
         self.dev_hdl
             .ok_or(CanError::other_error("device is not initialized!"))
     }
@@ -45,7 +53,7 @@ impl ZDeviceContext {
 pub(crate) struct ZChannelContext {
     pub(crate) device: ZDeviceContext,
     pub(crate) channel: u8,
-    pub(crate) chl_hdl: Option<u32>,
+    pub(crate) chl_hdl: Option<ZCanHdl>,
     pub(crate) timestamp: u64,
 }
 
@@ -60,12 +68,12 @@ impl ZChannelContext {
     }
 
     #[inline(always)]
-    pub fn device_handler(&self) -> CanResult<u32> {
+    pub fn device_handler(&self) -> CanResult<ZCanHdl> {
         self.device.device_handler()
     }
 
     #[inline(always)]
-    pub fn channel_handler(&self) -> CanResult<u32> {
+    pub fn channel_handler(&self) -> CanResult<ZCanHdl> {
         self.chl_hdl
             .ok_or(CanError::other_error("channel is not initialized!"))
     }

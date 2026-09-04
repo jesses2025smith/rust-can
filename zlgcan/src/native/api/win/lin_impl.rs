@@ -10,9 +10,9 @@ impl ZLinApi for WinApi<'_> {
             let dev_hdl = context.device_handler()?;
             let channel = context.channel;
             match (self.ZCAN_InitLIN)(dev_hdl, channel as u32, cfg) {
-                Self::INVALID_CHANNEL_HANDLE => Err(CanError::OperationError(format!(
+                v if v == Self::INVALID_CHANNEL_HANDLE => Err(CanError::OperationError(format!(
                     "`ZCAN_InitLIN` ret = {}",
-                    Self::INVALID_CHANNEL_HANDLE
+                    v
                 ))),
                 handler => match (self.ZCAN_StartLIN)(handler) {
                     Self::STATUS_OK => {
