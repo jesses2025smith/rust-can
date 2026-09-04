@@ -16,7 +16,7 @@ use std::{
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub enum ZCanChlType {
     #[default]
     CAN = 0,
@@ -59,6 +59,7 @@ impl TryFrom<u8> for ZCanChlMode {
 #[derive(Debug, Deserialize)]
 pub(crate) struct BitrateCtx {
     pub(crate) bitrate: HashMap<String, HashMap<String, u32>>,
+    #[allow(unused)]
     pub(crate) clock: Option<u32>,
     #[allow(unused)]
     pub(crate) data_bitrate: Option<HashMap<String, HashMap<String, u32>>>,

@@ -7,10 +7,10 @@ use crate::{
             ZCanFrameTx, ZCanFrameType,
         },
         constants::{
-            BAUD_RATE, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, CLOCK, INTERNAL_RESISTANCE,
-            PROTOCOL,
+            BAUD_RATE, CANFD_ABIT_BAUD_RATE, CANFD_DBIT_BAUD_RATE, CANFD_STANDARD,
+            INTERNAL_RESISTANCE,
         },
-        device::{CmdPath, ZCanDeviceType},
+        device::CmdPath,
     },
 };
 use rs_can::{CanError, CanResult, ChannelConfig};
@@ -38,13 +38,10 @@ impl ZCanApi for WinApi<'_> {
 
         let channel = context.channel;
         unsafe {
-            // configure the clock
-            if let Some(clock) = bc_ctx.clock {
-                let clock_path = CmdPath::new_path(CLOCK);
-                let value = CString::new(clock.to_string())
-                    .map_err(|e| CanError::OtherError(e.to_string()))?;
-                self.set_value(context, &clock_path, value.as_ptr() as *const c_void)?;
-            }
+            let can_type = cfg
+                .get_other::<ZCanChlType>(constants::CHANNEL_TYPE)?
+                .unwrap_or(ZCanChlType::default());
+
             // set channel resistance status
             if dev_type.has_resistance() {
                 let state = cfg.termination.unwrap_or(true) as u32;
@@ -55,29 +52,30 @@ impl ZCanApi for WinApi<'_> {
                 self.set_value(context, &resistance_path, value.as_ptr() as *const c_void)?;
             }
 
-            let can_type = cfg
-                .get_other::<ZCanChlType>(constants::CHANNEL_TYPE)?
-                .unwrap_or(ZCanChlType::default());
-            if !matches!(
-                dev_type,
-                ZCanDeviceType::ZCAN_USBCAN1 | ZCanDeviceType::ZCAN_USBCAN2
-            ) {
-                // set channel protocol
-                let protocol_path = format!("{}/{}", channel, PROTOCOL);
-                let protocol_path = CmdPath::new_path(protocol_path.as_str());
-                let value = CString::new((can_type as u32).to_string())
-                    .map_err(|e| CanError::OtherError(e.to_string()))?;
-                self.set_value(context, &protocol_path, value.as_ptr() as *const c_void)?;
-            }
-
-            // set channel bitrate
+            // set channel bitrate and CANFD standard
             let bitrate = cfg.nominal_bitrate;
             if dev_type.canfd_support() {
+                // set CANFD standard (0=ISO, 1=Non-ISO) — replaces the old "protocol" setting
+                match can_type {
+                    ZCanChlType::CANFD_ISO | ZCanChlType::CANFD_NON_ISO => {
+                        let standard = if can_type == ZCanChlType::CANFD_ISO { 0 } else { 1 };
+                        let standard_path = format!("{}/{}", channel, CANFD_STANDARD);
+                        let standard_path = CmdPath::new_path(standard_path.as_str());
+                        let value = CString::new(standard.to_string())
+                            .map_err(|e| CanError::OtherError(e.to_string()))?;
+                        let _ = self.set_value(context, &standard_path, value.as_ptr() as *const c_void);
+                    }
+                    _ => {}
+                }
+
+                // set arbitration bitrate
                 let abitrate_path = format!("{}/{}", channel, CANFD_ABIT_BAUD_RATE);
                 let abitrate_path = CmdPath::new_path(abitrate_path.as_str());
                 let value = CString::new(bitrate.to_string())
                     .map_err(|e| CanError::OtherError(e.to_string()))?;
                 self.set_value(context, &abitrate_path, value.as_ptr() as *const c_void)?;
+
+                // set data bitrate (CANFD only)
                 match can_type {
                     ZCanChlType::CANFD_ISO | ZCanChlType::CANFD_NON_ISO => {
                         let dbitrate = cfg.data_bitrate.unwrap_or(bitrate);
@@ -99,9 +97,9 @@ impl ZCanApi for WinApi<'_> {
 
             let _cfg = ZCanChlCfg::new(dev_type, can_type, bc_ctx, cfg)?;
             match (self.ZCAN_InitCAN)(context.device_handler()?, channel as u32, &_cfg) {
-                Self::INVALID_CHANNEL_HANDLE => Err(CanError::OperationError(format!(
+                v if v == Self::INVALID_CHANNEL_HANDLE => Err(CanError::OperationError(format!(
                     "`ZCAN_InitCAN` ret = {}",
-                    Self::INVALID_CHANNEL_HANDLE
+                    v
                 ))),
                 handler => match (self.ZCAN_StartCAN)(handler) {
                     Self::STATUS_OK => {
